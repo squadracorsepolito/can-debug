@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.1.0
 	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/squadracorsepolito/acmelib v1.15.2
+	go.einride.tech/can v0.15.0
 )
 
 require (
@@ -29,6 +30,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect

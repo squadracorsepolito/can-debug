@@ -1,13 +1,15 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"time"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/squadracorsepolito/acmelib"
+	"go.einride.tech/can/pkg/socketcan"
 
 	"github.com/carolabonamico/can-debug/internal/can"
 )
@@ -37,7 +39,7 @@ func (m *Model) loadDBC() error {
 	return nil
 }
 
-// setupMessageList confgure the message list
+// setupMessageList configure the message list
 func (m *Model) setupMessageList() {
 	items := make([]list.Item, 0, len(m.Messages))
 
@@ -159,8 +161,8 @@ func (m *Model) setupMonitoringTable() {
 	)
 }
 
-// showDBCSignals shows all signals from selected DBC messages
-func (m *Model) showDBCSignals() {
+// initializes the table with all signals and value from selected DBC messages
+func (m *Model) initializesTableDBCSignals() {
 	if len(m.SelectedMessages) == 0 {
 		return
 	}
@@ -210,7 +212,6 @@ func (m *Model) showDBCSignals() {
 	}
 
 	m.MonitoringTable.SetRows(rows)
-	m.LastUpdate = time.Now()
 }
 
 // getSignalTypeString returns a string representation of the signal type
@@ -231,4 +232,37 @@ func (m *Model) getSignalTypeString(signal acmelib.Signal) string {
 	}
 
 	return fmt.Sprintf("unknown (%d bit)", signal.Size())
+}
+
+// this function is intended as a goroutine,
+// it will keep receving messages from the Can Network, only saving them when in the "StateMonitoring" State
+func (m *Model) startReceavingMessages() {
+	recv := socketcan.NewReceiver(m.CanNetwork)
+	for recv.Receive() {
+		if m.State != StateMonitoring {
+			break
+		}
+
+		frame := recv.Frame()
+		decodedSignals := m.Decoder.Decode(context.Background(), frame.ID, frame.Data[:])
+
+		for _, sgn := range decodedSignals {
+			m.updateTable(sgn, frame.ID)
+		}
+	}
+	recv.Close()
+}
+
+// given a signal and its ID, updates the table with the corrisponding value (if the signal it's present in the monitoring table)
+func (m *Model) updateTable(sgn *acmelib.SignalDecoding, sgnID uint32) {
+
+	sgnIDhex := fmt.Sprintf("0x%X", sgnID)
+	rows := m.MonitoringTable.Rows()
+	for i := range rows {
+		if rows[i][1] == sgnIDhex && strings.Contains(rows[i][2], sgn.Signal.Name()) {
+			rows[i][3] = fmt.Sprintf("%v", sgn.Value)
+			break
+		}
+	}
+	m.MonitoringTable.SetRows(rows)
 }

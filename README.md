@@ -105,9 +105,11 @@ can-debug/
   - `toggleMessageSelection()`: Gestisce la selezione/deselezione dei messaggi
   - `updateMessageList()`: Aggiorna la lista dei messaggi selezionati
   - `setupMonitoringTable()`: Configura la tabella di monitoraggio con focus abilitato
-  - `showDBCSignals()`: Mostra tutti i segnali dei messaggi selezionati dal DBC
+  - `initializesTableDBCSignals()`: Initializes (using only the selected signals) a table for visualizing the received messages
   - `getSignalTypeString()`: Determina il tipo di segnale (standard/enum/muxor)
   - `formatValue()`: Formatta i valori dei segnali per la visualizzazione (future)
+  - `startReceavingMessages()`: Starts monitoring and receiving the Frames from the can network
+  - `updateTable(sgn *acmelib.SignalDecoding, sgnID uint32)`: Given a signal, updates the table for visualizing the received messages
 - **model.go**: Inizializza il modello dell'applicazione e gestisce lo stato
   - `newModel()`: Crea un nuovo modello con stato iniziale
   - `NewModelWithDBC()`: Crea un modello con file DBC caricato
@@ -146,7 +148,7 @@ Il tool attualmente mostra la struttura completa dei messaggi selezionati dal fi
 - **Tipo segnale**: Standard, enum, o muxor con dimensione in bit
 - **Navigazione**: Tabella scrollabile con frecce ↑/↓
 
-### Integrazione con dati CAN reali
+### Integrazione con dati CAN reali  
 
 Per collegare il tool a dati CAN reali, sostituire `showDBCSignals()` con lettura da bus:
 
