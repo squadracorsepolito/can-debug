@@ -8,9 +8,10 @@ import (
 	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/squadracorsepolito/acmelib"
 
-	"github.com/carolabonamico/can-debug/internal/can"
+	"github.com/squadracorsepolito/can-debug/internal/can"
 )
 
 // State represents the current state of the UI
@@ -18,8 +19,10 @@ type State int
 
 const (
 	StateFilePicker State = iota
+	StateSendReceiveSelector
 	StateMessageSelector
 	StateMonitoring
+	StateSending
 )
 
 // CANMessage represents a message in the CAN bus
@@ -61,7 +64,12 @@ type Model struct {
 	Width            int
 	Height           int
 	Err              error
-	CanNetwork		 net.Conn
+	CanNetwork       net.Conn
+	// send/receive functionality
+	SendReceiveChoice int // 0 = send, 1 = receive
+	TextInput         textinput.Model
+	LastSentMessage   string
+	SendStatus        string // Status message for sending operations
 }
 
 // Message for updating real-time data

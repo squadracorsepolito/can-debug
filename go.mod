@@ -1,4 +1,4 @@
-module github.com/carolabonamico/can-debug
+module github.com/squadracorsepolito/can-debug
 
 go 1.24.0
 

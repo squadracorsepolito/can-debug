@@ -1,10 +1,11 @@
 package ui
 
 import (
-	"time"
 	"net"
+	"time"
 
 	"github.com/charmbracelet/bubbles/filepicker"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -17,12 +18,20 @@ func NewModel(CanNet net.Conn) Model {
 	fp.DirAllowed = true
 	fp.FileAllowed = true
 
+	ti := textinput.New()
+	ti.Placeholder = "Enter a new message..."
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.Width = 50
+
 	return Model{
-		State:            StateFilePicker,
-		FilePicker:       fp,
-		SelectedMessages: make([]CANMessage, 0),
-		LastUpdate:       time.Now(),
-		CanNetwork: 	  CanNet,
+		State:             StateFilePicker,
+		FilePicker:        fp,
+		SelectedMessages:  make([]CANMessage, 0),
+		LastUpdate:        time.Now(),
+		CanNetwork:        CanNet,
+		SendReceiveChoice: 0,
+		TextInput:         ti,
 	}
 }
 
@@ -34,8 +43,7 @@ func NewModelWithDBC(dbcPath string, CanNet net.Conn) Model {
 		m.DBCPath = dbcPath
 		m.Err = m.loadDBC()
 		if m.Err == nil {
-			m.State = StateMessageSelector
-			m.setupMessageList()
+			m.State = StateSendReceiveSelector
 		}
 	}
 
