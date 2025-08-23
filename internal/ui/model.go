@@ -2,13 +2,14 @@ package ui
 
 import (
 	"time"
+	"net"
 
 	"github.com/charmbracelet/bubbles/filepicker"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 // NewModel create a new model for the UI
-func NewModel() Model {
+func NewModel(CanNet net.Conn) Model {
 	fp := filepicker.New()
 	fp.AllowedTypes = []string{".dbc"}
 	fp.CurrentDirectory = "."
@@ -21,12 +22,13 @@ func NewModel() Model {
 		FilePicker:       fp,
 		SelectedMessages: make([]CANMessage, 0),
 		LastUpdate:       time.Now(),
+		CanNetwork: 	  CanNet,
 	}
 }
 
 // NewModelWithDBC creates a new model with the specified DBC file
-func NewModelWithDBC(dbcPath string) Model {
-	m := NewModel()
+func NewModelWithDBC(dbcPath string, CanNet net.Conn) Model {
+	m := NewModel(CanNet)
 
 	if dbcPath != "" {
 		m.DBCPath = dbcPath

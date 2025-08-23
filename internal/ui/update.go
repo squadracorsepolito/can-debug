@@ -3,9 +3,11 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+	
 )
 
 // Update updates the model based on the received message
@@ -39,9 +41,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.State {
 			case StateMessageSelector:
 				if len(m.SelectedMessages) > 0 {
-					m.State = StateMonitoring
 					m.setupMonitoringTable()
-					m.showDBCSignals()
+					m.initializesTableDBCSignals()
+					m.State = StateMonitoring
+					go m.startReceavingMessages()
 				}
 			case StateMonitoring:
 				m.State = StateMessageSelector
@@ -53,13 +56,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case TickMsg:
-		// TODO: Handle real-time updates
-		// For now, we just return a command to tick every 100 milliseconds
-		// In a real implementation, this would update the CAN data
-		// Only when new messages arrive from the CAN bus
-		if m.State == StateMonitoring {
-			m.showDBCSignals()
-		}
+		m.LastUpdate = time.Now()
 		return m, TickCmd()
 	}
 
@@ -89,9 +86,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				if len(m.SelectedMessages) > 0 {
-					m.State = StateMonitoring
 					m.setupMonitoringTable()
-					m.showDBCSignals()
+					m.initializesTableDBCSignals()
+					m.State = StateMonitoring
+					go m.startReceavingMessages()
 				}
 			case " ":
 				// Toggle message selection

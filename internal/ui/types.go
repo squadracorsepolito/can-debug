@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/charmbracelet/bubbles/filepicker"
@@ -60,6 +61,7 @@ type Model struct {
 	Width            int
 	Height           int
 	Err              error
+	CanNetwork		 net.Conn
 }
 
 // Message for updating real-time data
