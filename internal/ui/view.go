@@ -68,8 +68,8 @@ func (m Model) View() string {
 		return m.messageSelectorView()
 	case StateMonitoring:
 		return m.monitoringView()
-	case StateSending:
-		return m.sendingView()
+	case StateSendConfiguration:
+		return m.sendConfigurationView()
 	default:
 		return "Not recognized state"
 	}
@@ -160,7 +160,12 @@ func (m Model) sendReceiveSelectorView() string {
 		s.WriteString("> 📥 Receive and monitor CAN messages\n")
 	}
 
-	s.WriteString("\n↑/k up • ↓/j down • Enter confirm • q quit")
+	// Show navigation instructions based on how DBC was loaded
+	if m.DBCFromCommandLine {
+		s.WriteString("\n↑/k up • ↓/j down • Enter confirm • q quit")
+	} else {
+		s.WriteString("\n↑/k up • ↓/j down • Enter confirm • Tab back to file selection • q quit")
+	}
 
 	return s.String()
 }
@@ -196,6 +201,53 @@ func (m Model) sendingView() string {
 	} else {
 		// Initial state
 		s.WriteString("💡 No message sent yet.")
+	}
+
+	return s.String()
+}
+
+// sendConfigurationView renders the send configuration view
+func (m Model) sendConfigurationView() string {
+	var s strings.Builder
+
+	s.WriteString(lipgloss.NewStyle().Bold(true).Render("📤 Configure message values to send"))
+	s.WriteString(fmt.Sprintf(" (File: %s)", m.DBCPath))
+	s.WriteString("\n\n")
+
+	// Send mode selection
+	s.WriteString("Send mode:\n")
+	if m.SendMode == 0 {
+		s.WriteString("> 🔄 Send once\n")
+		s.WriteString("  🔁 Send cyclically\n")
+	} else {
+		s.WriteString("  🔄 Send once\n")
+		s.WriteString("> 🔁 Send cyclically\n")
+	}
+
+	if m.SendMode == 1 {
+		s.WriteString(fmt.Sprintf("   Interval: %d ms\n", m.SendInterval))
+	}
+
+	s.WriteString("\n")
+
+	// Navigation instructions
+	s.WriteString("↑/k up • ↓/j down • s switch mode • +/- adjust interval • Tab back to message selection • Enter send • q quit")
+	s.WriteString("\n\n")
+
+	// Show the send table
+	if len(m.SendSignals) > 0 {
+		s.WriteString(m.SendTable.View())
+		s.WriteString("\n\n")
+	}
+
+	// Status
+	if m.SendStatus != "" {
+		wrappedStatus := m.wrapStatus(m.SendStatus, m.Width)
+		s.WriteString(fmt.Sprintf("💬 Status: %s", wrappedStatus))
+	} else if m.IsSendingCyclical {
+		s.WriteString(fmt.Sprintf("🔁 Sending cyclically every %d ms. Press Enter to stop.", m.SendInterval))
+	} else {
+		s.WriteString("💡 Enter values for each signal, choose send mode, and press Enter to send.")
 	}
 
 	return s.String()

@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/squadracorsepolito/acmelib"
 	"go.einride.tech/can"
 	"go.einride.tech/can/pkg/socketcan"
@@ -455,4 +456,143 @@ func (m *Model) sendWithCanSend(message string) {
 		m.SendStatus = fmt.Sprintf("📡 Sent via %s (ID: %s)", interfaceName, canID)
 		m.LastSentMessage = message // Set last sent message only on success
 	}
+}
+
+// setupSendConfiguration prepares the send configuration table and signals
+func (m *Model) setupSendConfiguration() {
+	m.SendSignals = make([]SendSignal, 0)
+
+	// Create send signals from selected messages
+	for _, msg := range m.SelectedMessages {
+		for _, signal := range msg.Message.Signals() {
+			sendSignal := SendSignal{
+				MessageName: msg.Name,
+				ID:          msg.ID,
+				SignalName:  signal.Name(),
+				Value:       "0", // default value
+			}
+
+			// Create text input for this signal
+			ti := textinput.New()
+			ti.Placeholder = "0"
+			ti.CharLimit = 20
+			ti.Width = 15
+			sendSignal.TextInput = ti
+
+			m.SendSignals = append(m.SendSignals, sendSignal)
+		}
+	}
+
+	// Setup the send table
+	m.setupSendTable()
+
+	// Focus the first input if available
+	if len(m.SendSignals) > 0 {
+		m.CurrentInputIndex = 0
+		m.SendSignals[0].TextInput.Focus()
+		m.SendTable.SetCursor(0) // Set cursor to first row
+	}
+}
+
+// setupSendTable configures the table for send configuration
+func (m *Model) setupSendTable() {
+	columns := []table.Column{
+		{Title: "Message", Width: 25},
+		{Title: "ID", Width: 10},
+		{Title: "Signal", Width: 30},
+		{Title: "Value", Width: 20},
+	}
+
+	rows := make([]table.Row, len(m.SendSignals))
+	for i, signal := range m.SendSignals {
+		rows[i] = table.Row{
+			signal.MessageName,
+			fmt.Sprintf("0x%X", signal.ID),
+			signal.SignalName,
+			signal.TextInput.View(),
+		}
+	}
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(10),
+	)
+
+	m.SendTable = t
+}
+
+// updateSendTableRows updates the send table with current input values
+func (m *Model) updateSendTableRows() {
+	rows := make([]table.Row, len(m.SendSignals))
+	for i, signal := range m.SendSignals {
+		rows[i] = table.Row{
+			signal.MessageName,
+			fmt.Sprintf("0x%X", signal.ID),
+			signal.SignalName,
+			signal.TextInput.View(),
+		}
+	}
+	m.SendTable.SetRows(rows)
+
+	// Set cursor to the current input index to highlight the correct row
+	if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+		m.SendTable.SetCursor(m.CurrentInputIndex)
+	}
+}
+
+// sendConfiguredSignals sends the configured signals via CAN
+func (m *Model) sendConfiguredSignals() {
+	if len(m.SendSignals) == 0 {
+		m.SendStatus = "No signals configured to send"
+		return
+	}
+
+	// Validate that all required values are entered
+	for _, signal := range m.SendSignals {
+		if signal.TextInput.Value() == "" {
+			m.SendStatus = fmt.Sprintf("Please enter a value for signal '%s'", signal.SignalName)
+			return
+		}
+	}
+
+	// TODO: Implement actual CAN sending logic
+	// For now, just show success message
+	var signalNames []string
+	for _, signal := range m.SendSignals {
+		signalNames = append(signalNames, fmt.Sprintf("%s=%s", signal.SignalName, signal.TextInput.Value()))
+	}
+
+	m.SendStatus = fmt.Sprintf("✅ Sent signals: %s", strings.Join(signalNames, ", "))
+}
+
+// startCyclicalSending starts sending signals cyclically
+func (m *Model) startCyclicalSending() {
+	if len(m.SendSignals) == 0 {
+		m.SendStatus = "No signals configured to send"
+		return
+	}
+
+	// Validate that all required values are entered
+	for _, signal := range m.SendSignals {
+		if signal.TextInput.Value() == "" {
+			m.SendStatus = fmt.Sprintf("Please enter a value for signal '%s'", signal.SignalName)
+			return
+		}
+	}
+
+	m.IsSendingCyclical = true
+	m.SendStatus = fmt.Sprintf("🔄 Cyclical sending started (interval: %dms). Press Enter to stop.", m.SendInterval)
+
+	// TODO: Implement actual cyclical CAN sending logic
+	// For now, just show status message
+}
+
+// stopCyclicalSending stops cyclical sending of signals
+func (m *Model) stopCyclicalSending() {
+	m.IsSendingCyclical = false
+	m.SendStatus = "⏹️ Cyclical sending stopped"
+
+	// TODO: Implement actual stopping of cyclical CAN sending
 }

@@ -32,6 +32,11 @@ func NewModel(CanNet net.Conn) Model {
 		CanNetwork:        CanNet,
 		SendReceiveChoice: 0,
 		TextInput:         ti,
+		SendSignals:       make([]SendSignal, 0),
+		CurrentInputIndex: -1,
+		SendMode:          0,   // default to single send
+		SendInterval:      100, // default 100ms
+		IsSendingCyclical: false,
 	}
 }
 
@@ -41,6 +46,7 @@ func NewModelWithDBC(dbcPath string, CanNet net.Conn) Model {
 
 	if dbcPath != "" {
 		m.DBCPath = dbcPath
+		m.DBCFromCommandLine = true // Set flag when DBC is from command line
 		m.Err = m.loadDBC()
 		if m.Err == nil {
 			m.State = StateSendReceiveSelector

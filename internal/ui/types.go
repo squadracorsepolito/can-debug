@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/squadracorsepolito/acmelib"
 
 	"github.com/squadracorsepolito/can-debug/internal/can"
@@ -22,7 +23,7 @@ const (
 	StateSendReceiveSelector
 	StateMessageSelector
 	StateMonitoring
-	StateSending
+	StateSendConfiguration
 )
 
 // CANMessage represents a message in the CAN bus
@@ -35,7 +36,10 @@ type CANMessage struct {
 
 func (c CANMessage) Title() string {
 	if c.Selected {
-		return "✅ " + c.Name
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#AA00FF")).
+			Bold(true).
+			Render(c.Name)
 	}
 	return c.Name
 }
@@ -43,12 +47,23 @@ func (c CANMessage) Title() string {
 func (c CANMessage) Description() string {
 	desc := fmt.Sprintf("ID: 0x%X", c.ID)
 	if c.Selected {
-		desc += " (selected)"
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#8800CC")).
+			Render(desc)
 	}
 	return desc
 }
 
 func (c CANMessage) FilterValue() string { return c.Name }
+
+// SendSignal represents a signal to be sent with its input field
+type SendSignal struct {
+	MessageName string
+	ID          uint32
+	SignalName  string
+	TextInput   textinput.Model
+	Value       string
+}
 
 // Main model of the application
 type Model struct {
@@ -58,6 +73,7 @@ type Model struct {
 	MonitoringTable  table.Model
 	SelectedMessages []CANMessage
 	DBCPath          string
+	DBCFromCommandLine bool // true if DBC file was provided via command line
 	Messages         []*acmelib.Message
 	Decoder          *can.Decoder
 	LastUpdate       time.Time
@@ -70,6 +86,14 @@ type Model struct {
 	TextInput         textinput.Model
 	LastSentMessage   string
 	SendStatus        string // Status message for sending operations
+	// send configuration fields
+	SendSignals       []SendSignal
+	SendTable         table.Model
+	CurrentInputIndex int // which input is currently focused
+	// cyclical sending options
+	SendMode          int  // 0 = single send, 1 = cyclical send
+	SendInterval      int  // interval in milliseconds for cyclical sending (default 100ms)
+	IsSendingCyclical bool // flag to track if cyclical sending is active
 }
 
 // Message for updating real-time data

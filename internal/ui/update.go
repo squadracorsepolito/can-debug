@@ -31,8 +31,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case StateMonitoring:
 			m.MonitoringTable.SetWidth(msg.Width)
 			m.MonitoringTable.SetHeight(msg.Height - 4)
-		case StateSending:
-			m.TextInput.Width = msg.Width - 4
+		case StateSendConfiguration:
+			m.SendTable.SetWidth(msg.Width)
+			m.SendTable.SetHeight(msg.Height - 4)
 		}
 
 	case tea.KeyMsg:
@@ -40,41 +41,28 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "tab":
-
+			// Tab sempre torna indietro alla schermata precedente
 			switch m.State {
 			case StateSendReceiveSelector:
-				// From send/receive selector, go to the appropriate next state
-				if m.SendReceiveChoice == 0 {
-					// Send mode
-					m.State = StateSending
-					m.TextInput.Focus()
-				} else {
-					// Receive mode
-					m.State = StateMessageSelector
-					m.setupMessageList()
+				// Da send/receive selector, torna a file picker solo se il DBC non è da riga di comando
+				if !m.DBCFromCommandLine {
+					m.State = StateFilePicker
 				}
 			case StateMessageSelector:
-				if len(m.SelectedMessages) > 0 {
-					m.setupMonitoringTable()
-					m.initializesTableDBCSignals()
-					m.State = StateMonitoring
-					go m.startReceavingMessages()
-				} else {
-					// Go back to send/receive selector if no messages selected
-					m.State = StateSendReceiveSelector
-				}
+				// Da message selector, torna a send/receive selector
+				m.State = StateSendReceiveSelector
 			case StateMonitoring:
+				// Da monitoring, torna a message selector
 				m.State = StateMessageSelector
 				// Update the message list when returning from monitoring mode
 				m.updateMessageListItems()
 				// Reset the table to avoid it being visible
 				m.MonitoringTable = table.Model{}
-			case StateSending:
-				// From sending mode, go back to send/receive selector
-				m.State = StateSendReceiveSelector
-				m.TextInput.SetValue("")
-				m.LastSentMessage = ""
-				m.SendStatus = ""
+			case StateSendConfiguration:
+				// Da send configuration, torna a message selector
+				m.State = StateMessageSelector
+				// Update the message list when returning from send configuration
+				m.updateMessageListItems()
 			}
 		}
 
@@ -116,9 +104,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "enter":
 				if m.SendReceiveChoice == 0 {
-					// Send mode
-					m.State = StateSending
-					m.TextInput.Focus()
+					// Send mode - go to message selector
+					m.State = StateMessageSelector
+					m.setupMessageList()
 				} else {
 					// Receive mode
 					m.State = StateMessageSelector
@@ -133,10 +121,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				if len(m.SelectedMessages) > 0 {
-					m.setupMonitoringTable()
-					m.initializesTableDBCSignals()
-					m.State = StateMonitoring
-					go m.startReceavingMessages()
+					if m.SendReceiveChoice == 0 {
+						// Send mode - vai a send configuration
+						m.State = StateSendConfiguration
+						m.setupSendConfiguration()
+					} else {
+						// Receive mode - vai a monitoring
+						m.setupMonitoringTable()
+						m.initializesTableDBCSignals()
+						m.State = StateMonitoring
+						go m.startReceavingMessages()
+					}
 				}
 			case " ":
 				// Toggle message selection
@@ -150,19 +145,61 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.MonitoringTable, cmd = m.MonitoringTable.Update(msg)
 		cmds = append(cmds, cmd)
 
-	case StateSending:
+	case StateSendConfiguration:
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "enter":
-				// Send the message and clear the input
-				if m.TextInput.Value() != "" {
-					m.sendMessage(m.TextInput.Value())
-					m.TextInput.SetValue("")
+				// Send the configured signals
+				if m.SendMode == 0 {
+					// Single send
+					m.sendConfiguredSignals()
+				} else {
+					// Start/stop cyclical sending
+					if m.IsSendingCyclical {
+						m.stopCyclicalSending()
+					} else {
+						m.startCyclicalSending()
+					}
+				}
+			case "s":
+				// Switch send mode
+				if m.SendMode == 0 {
+					m.SendMode = 1
+				} else {
+					m.SendMode = 0
+				}
+			case "-":
+				// Decrease interval (only in cyclical mode)
+				if m.SendMode == 1 && m.SendInterval > 50 {
+					m.SendInterval -= 10
+				}
+			case "+", "=":
+				// Increase interval (only in cyclical mode)
+				if m.SendMode == 1 && m.SendInterval < 2000 {
+					m.SendInterval += 10
+				}
+			case "up", "k":
+				if m.SendTable.Cursor() > 0 {
+					m.SendTable.MoveUp(1)
+					m.CurrentInputIndex = m.SendTable.Cursor()
+				}
+			case "down", "j":
+				if m.SendTable.Cursor() < len(m.SendSignals)-1 {
+					m.SendTable.MoveDown(1)
+					m.CurrentInputIndex = m.SendTable.Cursor()
+				}
+			default:
+				// Update the current input field
+				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+					m.SendSignals[m.CurrentInputIndex].TextInput, cmd = m.SendSignals[m.CurrentInputIndex].TextInput.Update(msg)
+					cmds = append(cmds, cmd)
+					// Update the table rows to reflect the new input value
+					m.updateSendTableRows()
 				}
 			}
 		}
-		m.TextInput, cmd = m.TextInput.Update(msg)
+		m.SendTable, cmd = m.SendTable.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
