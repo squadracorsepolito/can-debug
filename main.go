@@ -43,7 +43,7 @@ func main() {
 		}
 	} else {
 		// On non-Linux systems, continue without SocketCAN
-		fmt.Printf("Running on %s - using cansend for message transmission\n", runtime.GOOS)
+		fmt.Printf("Running on %s - no possible transmission\n", runtime.GOOS)
 		conn = nil
 	}
 

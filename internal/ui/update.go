@@ -33,7 +33,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.MonitoringTable.SetHeight(msg.Height - 4)
 		case StateSendConfiguration:
 			m.SendTable.SetWidth(msg.Width)
-			m.SendTable.SetHeight(msg.Height - 4)
+			// Calculate available height for the table
+			// Title+file (1) + spacing (2) + Navigation (1) + spacing (2) + Send mode (3-4) + spacing (1) + table spacing (2) + status (1) = ~12-13 lines
+			availableHeight := msg.Height - 13
+			if availableHeight < 3 {
+				availableHeight = 3 // Minimum height
+			}
+			m.SendTable.SetHeight(availableHeight)
 		}
 
 	case tea.KeyMsg:

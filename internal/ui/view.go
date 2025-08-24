@@ -100,7 +100,7 @@ func (m Model) messageSelectorView() string {
 	var s strings.Builder
 
 	// Display the message list
-	s.WriteString(lipgloss.NewStyle().Bold(true).Render("📋 Select signals to be displayed:"))
+	s.WriteString(lipgloss.NewStyle().Bold(true).Render("📋 Select signals:"))
 	s.WriteString("\n\n")
 
 	// Status bar with commands for the message list
@@ -214,6 +214,10 @@ func (m Model) sendConfigurationView() string {
 	s.WriteString(fmt.Sprintf(" (File: %s)", m.DBCPath))
 	s.WriteString("\n\n")
 
+	// Navigation instructions
+	s.WriteString("↑/k up • ↓/j down • s switch mode • +/- adjust interval • Tab back to message selection • Enter send • q quit")
+	s.WriteString("\n\n")
+
 	// Send mode selection
 	s.WriteString("Send mode:\n")
 	if m.SendMode == 0 {
@@ -225,14 +229,10 @@ func (m Model) sendConfigurationView() string {
 	}
 
 	if m.SendMode == 1 {
-		s.WriteString(fmt.Sprintf("   Interval: %d ms\n", m.SendInterval))
+		s.WriteString(fmt.Sprintf("     Interval: %d ms\n", m.SendInterval))
 	}
 
 	s.WriteString("\n")
-
-	// Navigation instructions
-	s.WriteString("↑/k up • ↓/j down • s switch mode • +/- adjust interval • Tab back to message selection • Enter send • q quit")
-	s.WriteString("\n\n")
 
 	// Show the send table
 	if len(m.SendSignals) > 0 {
