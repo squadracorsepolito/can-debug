@@ -34,6 +34,8 @@ func NewModel(CanNet net.Conn) Model {
 		TextInput:         ti,
 		SendSignals:       make([]SendSignal, 0),
 		CurrentInputIndex: -1,
+		NextTaskID:        1,
+		ActiveTasks:       make(map[int]chan struct{}),
 		SendMode:          0,   // default to single send
 		SendInterval:      100, // default 100ms
 		IsSendingCyclical: false,

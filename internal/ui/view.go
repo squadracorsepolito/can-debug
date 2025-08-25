@@ -214,25 +214,22 @@ func (m Model) sendConfigurationView() string {
 	s.WriteString(fmt.Sprintf(" (File: %s)", m.DBCPath))
 	s.WriteString("\n\n")
 
-	// Navigation instructions
-	s.WriteString("↑/k up • ↓/j down • s switch mode • ←→/l/r adjust interval • Tab back to message selection • Enter send • q quit")
+	// Instructions organized by category
+	s.WriteString("Navigation: ↑/k up • ↓/j down • Tab back • q quit\n")
+	s.WriteString("Action: Enter send once • Space toggle continuous • ←→ adjust cycle • s stop all")
 	s.WriteString("\n\n")
 
-	// Send mode selection
-	s.WriteString("Send mode:\n")
-	if m.SendMode == 0 {
-		s.WriteString("> 🔄 Send once\n")
-		s.WriteString("  🔁 Send cyclically\n")
-	} else {
-		s.WriteString("  🔄 Send once\n")
-		s.WriteString("> 🔁 Send cyclically\n")
+	// Show individual signal status if any are active
+	activeCount := 0
+	for _, signal := range m.SendSignals {
+		if signal.IsActive {
+			activeCount++
+		}
 	}
-
-	if m.SendMode == 1 {
-		s.WriteString(fmt.Sprintf("     Interval: %d ms\n", m.SendInterval))
+	if activeCount > 0 {
+		s.WriteString(fmt.Sprintf("🎯 Continuous signals active: %d/%d\n", activeCount, len(m.SendSignals)))
+		s.WriteString("\n")
 	}
-
-	s.WriteString("\n")
 
 	// Show the send table
 	if len(m.SendSignals) > 0 {
@@ -244,10 +241,10 @@ func (m Model) sendConfigurationView() string {
 	if m.SendStatus != "" {
 		wrappedStatus := m.wrapStatus(m.SendStatus, m.Width)
 		s.WriteString(fmt.Sprintf("💬 Status: %s", wrappedStatus))
-	} else if m.IsSendingCyclical {
-		s.WriteString(fmt.Sprintf("🔁 Sending cyclically every %d ms. Press Enter to stop.", m.SendInterval))
+	} else if activeCount > 0 {
+		s.WriteString("🎯 Continuous signals are running. Use Space to start/stop, Enter to send once.")
 	} else {
-		s.WriteString("💡 Enter values for each signal, choose send mode, and press Enter to send.")
+		s.WriteString("💡 Enter values, set cycle times. Use Enter to send once or Space for continuous sending.")
 	}
 
 	return s.String()

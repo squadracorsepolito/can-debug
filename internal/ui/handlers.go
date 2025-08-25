@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
@@ -23,13 +24,14 @@ import (
 
 // validateDecimalInput validates that input contains only decimal numbers (including negative)
 func validateDecimalInput(s string) error {
-	if s == "" || s == "-" {
-		return nil // Allow empty string and single minus sign for partial input
+	if s == "" || s == "-" || s == "." || s == "-." {
+		return nil // Allow empty string, single minus, single dot, and combination for partial input
 	}
 	// Allow decimal numbers (positive and negative) with optional decimal point
-	matched, _ := regexp.MatchString(`^-?\d*\.?\d*$`, s)
+	// Supports formats: 123, -123, 123.45, -123.45, .5, -.5, 0.5, -0.5
+	matched, _ := regexp.MatchString(`^-?(\d+\.?\d*|\.\d+)$`, s)
 	if !matched {
-		return fmt.Errorf("only decimal numbers allowed")
+		return fmt.Errorf("only decimal numbers allowed (e.g., 123, -45.67, .5)")
 	}
 	return nil
 }
@@ -164,10 +166,10 @@ func (m *Model) updateMessageListItems() {
 func (m *Model) setupMonitoringTable() {
 	columns := []table.Column{
 		{Title: "Message", Width: 25},
-		{Title: "ID", Width: 10},
+		{Title: "ID", Width: 8},
 		{Title: "Signal", Width: 30},
 		{Title: "Value", Width: 20},
-		{Title: "Raw", Width: 12},
+		{Title: "Raw", Width: 15},
 		{Title: "Type", Width: 20},
 	}
 
@@ -179,6 +181,9 @@ func (m *Model) setupMonitoringTable() {
 		table.WithFocused(true),
 		table.WithHeight(m.Height-8),
 	)
+
+	// Ensure the table is properly focused
+	m.MonitoringTable.Focus()
 }
 
 // initializes the table with all signals and value from selected DBC messages
@@ -483,7 +488,15 @@ func (m *Model) setupSendConfiguration() {
 				MessageName: msg.Name,
 				ID:          msg.ID,
 				SignalName:  signal.Name(),
-				Value:       "0", // default value
+				Value:       "0",   // default value
+				CycleTime:   100,   // default 100ms
+				IsActive:    false, // initially stopped
+				TaskID:      0,     // will be assigned when started
+			}
+
+			// Extract unit information from the signal
+			if stdSignal, err := signal.ToStandard(); err == nil && stdSignal.Unit() != nil {
+				sendSignal.Unit = stdSignal.Unit().Name()
 			}
 
 			// Create text input for this signal
@@ -518,17 +531,42 @@ func (m *Model) setupSendConfiguration() {
 func (m *Model) setupSendTable() {
 	columns := []table.Column{
 		{Title: "Message", Width: 25},
-		{Title: "ID", Width: 10},
+		{Title: "ID", Width: 8},
 		{Title: "Signal", Width: 30},
-		{Title: "Value", Width: 20},
+		{Title: "Cycle(ms)", Width: 10},
+		{Title: "Status", Width: 10},
+		{Title: "Value", Width: 25},
 	}
 
 	rows := make([]table.Row, len(m.SendSignals))
 	for i, signal := range m.SendSignals {
+		signalWithUnit := signal.SignalName
+		if signal.Unit != "" {
+			signalWithUnit += " (" + signal.Unit + ")"
+		}
+
+		status := "⏸️" // paused/stopped
+		if signal.IsActive {
+			status = "▶️" // playing/active
+		}
+
+		// Format cycle time with padding for alignment - show "-" for single shot
+		var cycleStr string
+		if signal.IsSingleShot {
+			cycleStr = fmt.Sprintf("%-8s", "-")
+		} else {
+			cycleStr = fmt.Sprintf("%-8d", signal.CycleTime)
+		}
+
+		// Format status with padding for alignment
+		statusStr := fmt.Sprintf("%-8s", status)
+
 		rows[i] = table.Row{
 			signal.MessageName,
-			fmt.Sprintf("0x%X", signal.ID),
-			signal.SignalName,
+			fmt.Sprintf("0x%-6X", signal.ID), // Left-aligned with padding
+			signalWithUnit,
+			cycleStr,
+			statusStr,
 			signal.TextInput.View(),
 		}
 	}
@@ -541,16 +579,45 @@ func (m *Model) setupSendTable() {
 	)
 
 	m.SendTable = t
+
+	// Ensure the table is properly focused and cursor is visible
+	m.SendTable.Focus()
+	if len(m.SendSignals) > 0 {
+		m.SendTable.SetCursor(0)
+	}
 }
 
 // updateSendTableRows updates the send table with current input values
 func (m *Model) updateSendTableRows() {
 	rows := make([]table.Row, len(m.SendSignals))
 	for i, signal := range m.SendSignals {
+		signalWithUnit := signal.SignalName
+		if signal.Unit != "" {
+			signalWithUnit += " (" + signal.Unit + ")"
+		}
+
+		status := "⏸️" // paused/stopped
+		if signal.IsActive {
+			status = "▶️" // playing/active
+		}
+
+		// Format cycle time with padding for alignment - show "-" for single shot
+		var cycleStr string
+		if signal.IsSingleShot {
+			cycleStr = fmt.Sprintf("%-8s", "-")
+		} else {
+			cycleStr = fmt.Sprintf("%-8d", signal.CycleTime)
+		}
+
+		// Format status with padding for alignment
+		statusStr := fmt.Sprintf("%-8s", status)
+
 		rows[i] = table.Row{
 			signal.MessageName,
-			fmt.Sprintf("0x%X", signal.ID),
-			signal.SignalName,
+			fmt.Sprintf("0x%-6X", signal.ID), // Left-aligned with padding
+			signalWithUnit,
+			cycleStr,
+			statusStr,
 			signal.TextInput.View(),
 		}
 	}
@@ -560,6 +627,9 @@ func (m *Model) updateSendTableRows() {
 	if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
 		m.SendTable.SetCursor(m.CurrentInputIndex)
 	}
+
+	// Ensure cursor visibility
+	m.ensureTableCursorVisible()
 }
 
 // sendConfiguredSignals sends the configured signals via CAN
@@ -615,4 +685,160 @@ func (m *Model) stopCyclicalSending() {
 	m.SendStatus = "⏹️ Cyclical sending stopped"
 
 	// TODO: Implement actual stopping of cyclical CAN sending
+}
+
+// toggleSignalSending toggles the active state of a specific signal
+func (m *Model) toggleSignalSending(index int) {
+	if index >= 0 && index < len(m.SendSignals) {
+		signal := &m.SendSignals[index]
+		signal.IsActive = !signal.IsActive
+
+		if signal.IsActive {
+			// Start sending this signal individually
+			m.startIndividualSignalSending(index)
+		} else {
+			// Stop sending this signal
+			m.stopIndividualSignalSending(index)
+		}
+
+		// Update the table to reflect the new status
+		m.updateSendTableRows()
+	}
+}
+
+// setCycleTimePrompt sets up a prompt for editing cycle time (simplified version)
+func (m *Model) setCycleTimePrompt(index int) {
+	if index >= 0 && index < len(m.SendSignals) {
+		signal := &m.SendSignals[index]
+		// For now, just increment by 100ms as a simple implementation
+		// In future, this could open a dedicated input dialog
+		if signal.CycleTime < 10000 {
+			signal.CycleTime += 100
+		} else {
+			signal.CycleTime = 100 // Reset to minimum
+		}
+		m.updateSendTableRows()
+	}
+}
+
+// startIndividualSignalSending starts sending a specific signal with its own frequency
+func (m *Model) startIndividualSignalSending(index int) {
+	if index >= 0 && index < len(m.SendSignals) {
+		signal := &m.SendSignals[index]
+
+		// Check if this signal is already being sent
+		if _, exists := m.ActiveTasks[signal.TaskID]; exists {
+			// Already active, no need to start again
+			return
+		}
+
+		// Create a new task ID if needed
+		if signal.TaskID == 0 {
+			signal.TaskID = m.NextTaskID
+			m.NextTaskID++
+		}
+
+		// Create a stop channel for this task
+		stopChan := make(chan struct{})
+		m.ActiveTasks[signal.TaskID] = stopChan
+
+		// Start a goroutine for this signal
+		go func(sig SendSignal, stop chan struct{}) {
+			ticker := time.NewTicker(time.Duration(sig.CycleTime) * time.Millisecond)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-stop:
+					return
+				case <-ticker.C:
+					// TODO: Send the actual CAN message here
+					// For now, just a placeholder
+				}
+			}
+		}(*signal, stopChan)
+
+		m.SendStatus = fmt.Sprintf("▶️ Started sending %s every %dms", signal.SignalName, signal.CycleTime)
+	}
+}
+
+// stopIndividualSignalSending stops sending a specific signal
+func (m *Model) stopIndividualSignalSending(index int) {
+	if index >= 0 && index < len(m.SendSignals) {
+		signal := &m.SendSignals[index]
+
+		// Check if this signal has an active task
+		if stopChan, exists := m.ActiveTasks[signal.TaskID]; exists {
+			// Send stop signal
+			close(stopChan)
+			// Remove from active tasks
+			delete(m.ActiveTasks, signal.TaskID)
+
+			m.SendStatus = fmt.Sprintf("⏸️ Stopped sending %s", signal.SignalName)
+		}
+	}
+}
+
+// sendSingleSignal sends a single signal once
+func (m *Model) sendSingleSignal(index int) {
+	if index >= 0 && index < len(m.SendSignals) {
+		signal := &m.SendSignals[index]
+
+		// Validate that the value is entered
+		if signal.TextInput.Value() == "" {
+			m.SendStatus = fmt.Sprintf("Please enter a value for signal '%s'", signal.SignalName)
+			return
+		}
+
+		// Mark as single shot and update display
+		signal.IsSingleShot = true
+		m.updateSendTableRows()
+
+		// TODO: Implement actual CAN sending logic here
+		// For now, just show success message
+		m.SendStatus = fmt.Sprintf("📤 Sent %s = %s once", signal.SignalName, signal.TextInput.Value())
+
+		// Reset single shot flag after a brief moment
+		go func() {
+			time.Sleep(2 * time.Second)
+			signal.IsSingleShot = false
+			m.updateSendTableRows()
+		}()
+	}
+}
+
+// ensureTableCursorVisible ensures the table cursor remains visible during scroll
+func (m *Model) ensureTableCursorVisible() {
+	// For send table
+	if m.State == StateSendConfiguration && m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+		// Force the table to focus and set cursor position
+		m.SendTable.Focus()
+		m.SendTable.SetCursor(m.CurrentInputIndex)
+	}
+
+	// For monitoring table
+	if m.State == StateMonitoring {
+		// Ensure monitoring table is focused
+		m.MonitoringTable.Focus()
+	}
+}
+
+// stopAllSignalSending stops all active signal sending tasks
+func (m *Model) stopAllSignalSending() {
+	// Stop all active tasks
+	for taskID, stopChan := range m.ActiveTasks {
+		close(stopChan)
+		delete(m.ActiveTasks, taskID)
+	}
+
+	// Reset all signals to inactive
+	for i := range m.SendSignals {
+		m.SendSignals[i].IsActive = false
+		m.SendSignals[i].IsSingleShot = false
+	}
+
+	// Update table display
+	m.updateSendTableRows()
+
+	m.SendStatus = "🛑 All signal sending stopped"
 }

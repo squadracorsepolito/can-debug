@@ -33,13 +33,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.MonitoringTable.SetHeight(msg.Height - 4)
 		case StateSendConfiguration:
 			m.SendTable.SetWidth(msg.Width)
-			// Calculate available height for the table
-			// Title+file (1) + spacing (2) + Navigation (1) + spacing (2) + Send mode (3-4) + spacing (1) + table spacing (2) + status (1) = ~12-13 lines
-			availableHeight := msg.Height - 13
-			if availableHeight < 3 {
-				availableHeight = 3 // Minimum height
-			}
-			m.SendTable.SetHeight(availableHeight)
+			m.SendTable.SetHeight(msg.Height - 10)
 		}
 
 	case tea.KeyMsg:
@@ -148,42 +142,86 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 	case StateMonitoring:
+		// Update the table to handle scroll and cursor
 		m.MonitoringTable, cmd = m.MonitoringTable.Update(msg)
 		cmds = append(cmds, cmd)
+
+		// Always ensure the table cursor is properly positioned and visible
+		m.ensureTableCursorVisible()
 
 	case StateSendConfiguration:
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "enter":
-				// Send the configured signals
-				if m.SendMode == 0 {
-					// Single send
-					m.sendConfiguredSignals()
-				} else {
-					// Start/stop cyclical sending
-					if m.IsSendingCyclical {
-						m.stopCyclicalSending()
-					} else {
-						m.startCyclicalSending()
+				// Send once the current signal
+				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+					m.sendSingleSignal(m.CurrentInputIndex)
+				}
+			case " ":
+				// Toggle start/stop for current signal
+				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+					m.toggleSignalSending(m.CurrentInputIndex)
+				}
+			case "c":
+				// Edit cycle time for current signal
+				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+					// Create a simple prompt for cycle time (in future can be improved)
+					m.setCycleTimePrompt(m.CurrentInputIndex)
+				}
+			case "right", "l":
+				// Increase cycle time for current signal
+				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+					signal := &m.SendSignals[m.CurrentInputIndex]
+					if signal.CycleTime < 10000 { // max 10 seconds
+						signal.CycleTime += 50
+						signal.IsSingleShot = false // Reset single shot when adjusting cycle
+						m.updateSendTableRows()
+					}
+				}
+			case "left":
+				// Decrease cycle time for current signal
+				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+					signal := &m.SendSignals[m.CurrentInputIndex]
+					if signal.CycleTime > 50 { // min 50ms
+						signal.CycleTime -= 50
+						signal.IsSingleShot = false // Reset single shot when adjusting cycle
+						m.updateSendTableRows()
 					}
 				}
 			case "s":
-				// Switch send mode
-				if m.SendMode == 0 {
-					m.SendMode = 1
-				} else {
-					m.SendMode = 0
+				// Stop all signal sending
+				m.stopAllSignalSending()
+			case "+", "=":
+				// Increase cycle time for current signal (alternative)
+				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+					signal := &m.SendSignals[m.CurrentInputIndex]
+					if signal.CycleTime < 10000 { // max 10 seconds
+						signal.CycleTime += 50
+						signal.IsSingleShot = false // Reset single shot when adjusting cycle
+						m.updateSendTableRows()
+					}
 				}
-			case "left", "l":
-				// Decrease interval (only in cyclical mode)
-				if m.SendMode == 1 && m.SendInterval > 50 {
-					m.SendInterval -= 10
-				}
-			case "right", "r":
-				// Increase interval (only in cyclical mode)
-				if m.SendMode == 1 && m.SendInterval < 2000 {
-					m.SendInterval += 10
+			case "-":
+				// Decrease cycle time for current signal (only if not entering negative numbers)
+				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+					// Check if we're in input mode and the input is focused
+					currentInput := &m.SendSignals[m.CurrentInputIndex].TextInput
+					if currentInput.Focused() {
+						// Let the input handle the '-' for negative numbers
+						*currentInput, cmd = currentInput.Update(msg)
+						cmds = append(cmds, cmd)
+						m.updateSendTableRows()
+					} else {
+						// We're not in input mode, decrease cycle time
+						signal := &m.SendSignals[m.CurrentInputIndex]
+						if signal.CycleTime > 50 { // min 50ms
+							signal.CycleTime -= 50
+							signal.IsSingleShot = false // Reset single shot when adjusting cycle
+							signal.CycleTime -= 50
+							m.updateSendTableRows()
+						}
+					}
 				}
 			case "up", "k":
 				if m.CurrentInputIndex > 0 {
@@ -193,7 +231,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					// Move to previous input
 					m.CurrentInputIndex--
-					// Sync table cursor
+					// Let the table handle the navigation, then sync
+					m.SendTable, cmd = m.SendTable.Update(msg)
+					cmds = append(cmds, cmd)
+					// Sync table cursor with our index
 					m.SendTable.SetCursor(m.CurrentInputIndex)
 					// Set focus to new input
 					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
@@ -208,7 +249,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					// Move to next input
 					m.CurrentInputIndex++
-					// Sync table cursor
+					// Let the table handle the navigation, then sync
+					m.SendTable, cmd = m.SendTable.Update(msg)
+					cmds = append(cmds, cmd)
+					// Sync table cursor with our index
 					m.SendTable.SetCursor(m.CurrentInputIndex)
 					// Set focus to new input
 					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
@@ -225,8 +269,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		// Don't let the table handle navigation autonomously for this state
-		// We manage cursor manually to sync with input focus
+
+		// For non-navigation messages, let the table update normally to handle scroll and rendering
+		if msg, ok := msg.(tea.KeyMsg); !ok || (msg.String() != "up" && msg.String() != "down" && msg.String() != "k" && msg.String() != "j") {
+			m.SendTable, cmd = m.SendTable.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+
+		// Always ensure the table cursor is properly positioned and visible
+		m.ensureTableCursorVisible()
 	}
 
 	return m, tea.Batch(cmds...)

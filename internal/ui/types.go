@@ -58,29 +58,34 @@ func (c CANMessage) FilterValue() string { return c.Name }
 
 // SendSignal represents a signal to be sent with its input field
 type SendSignal struct {
-	MessageName string
-	ID          uint32
-	SignalName  string
-	TextInput   textinput.Model
-	Value       string
+	MessageName  string
+	ID           uint32
+	SignalName   string
+	Unit         string
+	TextInput    textinput.Model
+	Value        string
+	CycleTime    int  // cycle time in milliseconds for this specific message
+	IsActive     bool // whether this signal/message is actively being sent
+	TaskID       int  // unique ID for the task (for stopping)
+	IsSingleShot bool // true if this is a single shot send (shows "-" in cycle column)
 }
 
 // Main model of the application
 type Model struct {
-	State            State
-	FilePicker       filepicker.Model
-	MessageList      list.Model
-	MonitoringTable  table.Model
-	SelectedMessages []CANMessage
-	DBCPath          string
+	State              State
+	FilePicker         filepicker.Model
+	MessageList        list.Model
+	MonitoringTable    table.Model
+	SelectedMessages   []CANMessage
+	DBCPath            string
 	DBCFromCommandLine bool // true if DBC file was provided via command line
-	Messages         []*acmelib.Message
-	Decoder          *can.Decoder
-	LastUpdate       time.Time
-	Width            int
-	Height           int
-	Err              error
-	CanNetwork       net.Conn
+	Messages           []*acmelib.Message
+	Decoder            *can.Decoder
+	LastUpdate         time.Time
+	Width              int
+	Height             int
+	Err                error
+	CanNetwork         net.Conn
 	// send/receive functionality
 	SendReceiveChoice int // 0 = send, 1 = receive
 	TextInput         textinput.Model
@@ -90,7 +95,10 @@ type Model struct {
 	SendSignals       []SendSignal
 	SendTable         table.Model
 	CurrentInputIndex int // which input is currently focused
-	// cyclical sending options
+	// task management for individual message sending
+	NextTaskID  int                   // counter for unique task IDs
+	ActiveTasks map[int]chan struct{} // map of taskID -> stop channel
+	// cyclical sending options (global, deprecated - use per-message cycle time)
 	SendMode          int  // 0 = single send, 1 = cyclical send
 	SendInterval      int  // interval in milliseconds for cyclical sending (default 100ms)
 	IsSendingCyclical bool // flag to track if cyclical sending is active
