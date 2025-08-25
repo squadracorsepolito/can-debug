@@ -186,28 +186,30 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.SendInterval += 10
 				}
 			case "up", "k":
-				if m.SendTable.Cursor() > 0 {
+				if m.CurrentInputIndex > 0 {
 					// Remove focus from current input
 					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
 						m.SendSignals[m.CurrentInputIndex].TextInput.Blur()
 					}
-					// Move cursor up
-					m.SendTable.MoveUp(1)
-					m.CurrentInputIndex = m.SendTable.Cursor()
+					// Move to previous input
+					m.CurrentInputIndex--
+					// Sync table cursor
+					m.SendTable.SetCursor(m.CurrentInputIndex)
 					// Set focus to new input
 					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
 						m.SendSignals[m.CurrentInputIndex].TextInput.Focus()
 					}
 				}
 			case "down", "j":
-				if m.SendTable.Cursor() < len(m.SendSignals)-1 {
+				if m.CurrentInputIndex < len(m.SendSignals)-1 {
 					// Remove focus from current input
 					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
 						m.SendSignals[m.CurrentInputIndex].TextInput.Blur()
 					}
-					// Move cursor down
-					m.SendTable.MoveDown(1)
-					m.CurrentInputIndex = m.SendTable.Cursor()
+					// Move to next input
+					m.CurrentInputIndex++
+					// Sync table cursor
+					m.SendTable.SetCursor(m.CurrentInputIndex)
 					// Set focus to new input
 					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
 						m.SendSignals[m.CurrentInputIndex].TextInput.Focus()
@@ -223,8 +225,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		m.SendTable, cmd = m.SendTable.Update(msg)
-		cmds = append(cmds, cmd)
+		// Don't let the table handle navigation autonomously for this state
+		// We manage cursor manually to sync with input focus
 	}
 
 	return m, tea.Batch(cmds...)
