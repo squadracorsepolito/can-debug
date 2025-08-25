@@ -175,12 +175,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.SendMode = 0
 				}
-			case "-":
+			case "left", "l":
 				// Decrease interval (only in cyclical mode)
 				if m.SendMode == 1 && m.SendInterval > 50 {
 					m.SendInterval -= 10
 				}
-			case "+", "=":
+			case "right", "r":
 				// Increase interval (only in cyclical mode)
 				if m.SendMode == 1 && m.SendInterval < 2000 {
 					m.SendInterval += 10

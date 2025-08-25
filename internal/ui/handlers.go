@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -19,6 +20,19 @@ import (
 
 	canDebug "github.com/squadracorsepolito/can-debug/internal/can"
 )
+
+// validateDecimalInput validates that input contains only decimal numbers (including negative)
+func validateDecimalInput(s string) error {
+	if s == "" || s == "-" {
+		return nil // Allow empty string and single minus sign for partial input
+	}
+	// Allow decimal numbers (positive and negative) with optional decimal point
+	matched, _ := regexp.MatchString(`^-?\d*\.?\d*$`, s)
+	if !matched {
+		return fmt.Errorf("only decimal numbers allowed")
+	}
+	return nil
+}
 
 // loadDBC loads the DBC file
 func (m *Model) loadDBC() error {
@@ -477,6 +491,8 @@ func (m *Model) setupSendConfiguration() {
 			ti.Placeholder = "0"
 			ti.CharLimit = 20
 			ti.Width = 15
+			// Set validation function for decimal numbers
+			ti.Validate = validateDecimalInput
 			sendSignal.TextInput = ti
 
 			m.SendSignals = append(m.SendSignals, sendSignal)

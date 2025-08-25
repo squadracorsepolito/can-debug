@@ -215,7 +215,7 @@ func (m Model) sendConfigurationView() string {
 	s.WriteString("\n\n")
 
 	// Navigation instructions
-	s.WriteString("↑/k up • ↓/j down • s switch mode • +/- adjust interval • Tab back to message selection • Enter send • q quit")
+	s.WriteString("↑/k up • ↓/j down • s switch mode • ←→/l/r adjust interval • Tab back to message selection • Enter send • q quit")
 	s.WriteString("\n\n")
 
 	// Send mode selection
