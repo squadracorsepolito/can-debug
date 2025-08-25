@@ -491,6 +491,10 @@ func (m *Model) setupSendConfiguration() {
 		m.CurrentInputIndex = 0
 		m.SendSignals[0].TextInput.Focus()
 		m.SendTable.SetCursor(0) // Set cursor to first row
+		// Make sure all other inputs are blurred
+		for i := 1; i < len(m.SendSignals); i++ {
+			m.SendSignals[i].TextInput.Blur()
+		}
 	}
 }
 

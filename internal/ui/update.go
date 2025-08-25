@@ -187,13 +187,31 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "up", "k":
 				if m.SendTable.Cursor() > 0 {
+					// Remove focus from current input
+					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+						m.SendSignals[m.CurrentInputIndex].TextInput.Blur()
+					}
+					// Move cursor up
 					m.SendTable.MoveUp(1)
 					m.CurrentInputIndex = m.SendTable.Cursor()
+					// Set focus to new input
+					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+						m.SendSignals[m.CurrentInputIndex].TextInput.Focus()
+					}
 				}
 			case "down", "j":
 				if m.SendTable.Cursor() < len(m.SendSignals)-1 {
+					// Remove focus from current input
+					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+						m.SendSignals[m.CurrentInputIndex].TextInput.Blur()
+					}
+					// Move cursor down
 					m.SendTable.MoveDown(1)
 					m.CurrentInputIndex = m.SendTable.Cursor()
+					// Set focus to new input
+					if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
+						m.SendSignals[m.CurrentInputIndex].TextInput.Focus()
+					}
 				}
 			default:
 				// Update the current input field
