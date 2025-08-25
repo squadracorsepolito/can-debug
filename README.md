@@ -1,193 +1,364 @@
 # CAN Debug Tool
 
-Un tool di debug per messaggi CAN con interfaccia TUI (Text User Interface) basato su bubbletea di Charm.
+A comprehensive CAN bus debugging tool with a modern Terminal User Interface (TUI) built with Bubble Tea. This tool provides advanced functionality for sending and receiving CAN messages with individual signal control and DBC file support.
 
-## Funzionalità
+## 🚀 Features
 
-- **Apertura file DBC**: Seleziona e carica un file .dbc dal filesystem usando il file picker integrato
-- **Selezione multipla messaggi**: Scegli uno o più messaggi CAN da monitorare
-- **Visualizzazione segnali DBC**: Mostra tutti i segnali di ogni messaggio selezionato con:
-  - Nome del messaggio e ID CAN in formato esadecimale
-  - Nome del segnale con unità di misura (se disponibili)
-  - Valore del segnale in formato decimale
-  - Posizione bit nel payload
-  - Tipo di segnale (standard, enum, muxor) con dimensione in bit
-- **Tabella navigabile**: Usa frecce su/giù per scorrere i segnali nella tabella di monitoraggio
-- **Interfaccia TUI**: Usa bubbletea di Charm del terminale
-- **Integrazione acmelib**: Utilizza acmelib per parsing di file DBC e strutture messaggi
+### Core Functionality
 
-## Installazione
+- **DBC File Support**: Load and parse DBC files for comprehensive CAN message definitions
+- **Dual Mode Operation**: Choose between Send and Receive modes
+- **Real-time Monitoring**: Live CAN message reception and signal decoding
+- **Advanced Signal Transmission**: Individual frequency control for each signal
+- **Modern TUI**: Beautiful terminal interface with table navigation and real-time updates
+
+### Send Mode Features
+
+- **Individual Signal Control**: Each signal has its own transmission frequency (50ms to 10s)
+- **Flexible Sending Options**:
+  - Single-shot transmission (Enter)
+  - Continuous transmission with custom cycle times (Space)
+  - Real-time cycle time adjustment (←→ arrows)
+- **Emergency Stop**: Instantly stop all transmissions (s key)
+- **Value Input Validation**: Support for decimal numbers, negative values, and floating-point precision
+- **Live Status Indicators**: Visual feedback for active/inactive signals
+
+### Receive Mode Features
+
+- **Message Selection**: Choose specific CAN messages to monitor
+- **Signal Decoding**: Automatic signal extraction and value interpretation using DBC definitions
+- **Real-time Updates**: Live table updates with incoming CAN data
+- **Search Functionality**: Filter messages by name for quick selection
+
+## 📋 Requirements
+
+### System Requirements
+
+- **Linux**: Full SocketCAN support for sending and receiving
+- **macOS**: Send support via can-utils (cansend command)
+- **Windows**: Limited support (testing mode only)
+
+### Dependencies
+
+- Go 1.19 or higher
+- Linux: SocketCAN interface (vcan0 or real CAN interface)
+- macOS: can-utils package for sending
+
+## 🛠️ Installation
+
+### Build from Source
 
 ```bash
-cd cmd/can-debug
-go build
+git clone <repository-url>
+cd can-debug
+go build -o can-debug
 ```
 
-## Utilizzo
-
-### Modalità base (file picker)
+### Quick Start
 
 ```bash
+# Using file picker
 ./can-debug
+
+# Direct DBC file loading
+./can-debug internal/test/MCB.dbc
+
+# Show help
+./can-debug -h
 ```
 
-### Caricamento diretto di un file DBC
+## 📖 Usage Guide
+
+### Command Line Options
 
 ```bash
-./can-debug path/to/file.dbc
+can-debug [file.dbc]     # Load DBC file directly
+can-debug -h|--help      # Show comprehensive help
 ```
 
-### Esempio con il file DBC
+### Workflow
 
-```bash
-./can-debug ./internal/test/MCB.dbc
-```
+1. **File Selection**: Choose a DBC file using the built-in file picker or load directly
+2. **Mode Selection**: Choose between Send or Receive mode
+3. **Message Selection**: Select CAN messages for monitoring or configuration
+4. **Operation**:
+   - **Send Mode**: Configure signal values and transmission parameters
+   - **Receive Mode**: Monitor live CAN traffic with signal decoding
 
-### Controlli Tastiera
+### Keyboard Controls
 
-#### File Picker
+#### Navigation Commands
 
-- **Frecce ↑/↓**: Navigazione file e directory
-- **Enter**: Apri directory o seleziona file .dbc
-- **Backspace**: Torna alla directory precedente
+| Key                  | Action                               |
+| -------------------- | ------------------------------------ |
+| `↑/↓` or `k/j` | Navigate up/down in lists and tables |
+| `Tab`              | Go back to previous screen           |
+| `q`                | Quit application                     |
 
-#### Selezione Messaggi
+#### File Selection
 
-- **Frecce ↑/↓**: Naviga lista messaggi CAN
-- **Space**: Toggle selezione/deselezione messaggio
-- **Enter**: Inizia monitoraggio dei messaggi selezionati
-- **/ (slash)**: Filtra messaggi per nome
+| Key       | Action                             |
+| --------- | ---------------------------------- |
+| `Enter` | Open directory or select .dbc file |
 
-#### Monitoraggio Segnali
+#### Send/Receive Mode Selection
 
-- **Frecce ↑/↓**: Scorri la tabella dei segnali
-- **Tab**: Torna alla selezione messaggi
+| Key       | Action                              |
+| --------- | ----------------------------------- |
+| `↑/↓` | Choose between Send or Receive mode |
+| `Enter` | Confirm selection                   |
 
-#### Globali
+#### Message List
 
-- **q / Ctrl+C**: Esci dall'applicazione
-- **?**: Mostra aiuto (dove disponibile)
+| Key       | Action                        |
+| --------- | ----------------------------- |
+| `/`     | Search messages by name       |
+| `Space` | Select/deselect message       |
+| `Enter` | Confirm selection and proceed |
 
-### Flusso di utilizzo
+#### Send Configuration (Advanced Signal Control)
 
-1. **Selezione file DBC**: Naviga nel filesystem e seleziona un file .dbc
-2. **Selezione messaggi**: Usa SPACE per selezionare/deselezionare i messaggi CAN che vuoi monitorare
-3. **Visualizzazione segnali**: Visualizza tutti i segnali dei messaggi selezionati con:
-   - Informazioni strutturali dal file DBC
-   - Posizioni bit e tipi di segnale
-   - Unità di misura quando disponibili
-   - Possibilità di scorrere la tabella con le frecce
+| Key       | Action                                |
+| --------- | ------------------------------------- |
+| `↑/↓` | Navigate between signals              |
+| `Enter` | Send signal once (single shot)        |
+| `Space` | Toggle continuous transmission        |
+| `←/→` | Adjust cycle time (±50ms increments) |
+| `s`     | Emergency stop all transmissions      |
+| `Tab`   | Return to previous screen             |
 
-## Struttura del progetto
+**Signal Control Details:**
+
+- **Cycle Time Range**: 50ms to 10,000ms (10 seconds)
+- **Increment Size**: 50ms steps
+- **Input Validation**: Supports integers, decimals, and negative values
+- **Visual Indicators**: Active signals show ▶️, inactive show ⏸️
+- **Single Shot Mode**: Temporary "-" indicator for one-time transmissions
+
+#### Receive Mode (Monitoring)
+
+| Key       | Action                          |
+| --------- | ------------------------------- |
+| `↑/↓` | Scroll through received signals |
+| `Tab`   | Return to message selection     |
+
+## 🏗️ Project Structure
 
 ```
 can-debug/
-├── main.go                    # Entry point dell'applicazione
+├── main.go                    # Application entry point and CLI handling
 ├── internal/
-│   ├── test/                  # Test e file di esempio
-│   │   └── MCB.dbc            # File DBC di esempio per test
-│   ├── ui/                    # Package per l'interfaccia utente
-│   │   ├── types.go           # Definizioni di tipi e strutture
-│   │   ├── model.go           # Costruttori e inizializzazione
-│   │   ├── update.go          # Logica di aggiornamento del modello
-│   │   ├── view.go            # Logica di rendering delle viste
-│   │   └── handlers.go        # Handler per eventi e logica business
-│   └── can/                   # Package per la logica CAN
-│       └── decoder.go         # Decoder per messaggi CAN usando acmelib
-└── README.md
+│   ├── test/
+│   │   └── MCB.dbc           # Example DBC file for testing
+│   ├── ui/                   # User Interface package
+│   │   ├── types.go          # Data structures and type definitions
+│   │   ├── model.go          # Model initialization and state management
+│   │   ├── update.go         # Event handling and state updates
+│   │   ├── view.go           # UI rendering and display logic
+│   │   └── handlers.go       # Business logic and CAN operations
+│   └── can/
+│       └── decoder.go        # CAN message decoding with acmelib
+├── go.mod                    # Go module definition
+├── go.sum                    # Dependency checksums
+└── README.md                 # This file
 ```
 
-### Descrizione dei file
+### Key Components
 
-- **handlers.go**: Contiene tutta la logica business dell'applicazione:
-  - `loadDBC()`: Carica e parsifica file DBC usando acmelib
-  - `setupMessageList()`: Configura la lista dei messaggi CAN disponibili
-  - `toggleMessageSelection()`: Gestisce la selezione/deselezione dei messaggi
-  - `updateMessageList()`: Aggiorna la lista dei messaggi selezionati
-  - `setupMonitoringTable()`: Configura la tabella di monitoraggio con focus abilitato
-  - `initializesTableDBCSignals()`: Initializes (using only the selected signals) a table for visualizing the received messages
-  - `getSignalTypeString()`: Determina il tipo di segnale (standard/enum/muxor)
-  - `formatValue()`: Formatta i valori dei segnali per la visualizzazione (future)
-  - `startReceavingMessages()`: Starts monitoring and receiving the Frames from the can network
-  - `updateTable(sgn *acmelib.SignalDecoding, sgnID uint32)`: Given a signal, updates the table for visualizing the received messages
-- **model.go**: Inizializza il modello dell'applicazione e gestisce lo stato
-  - `newModel()`: Crea un nuovo modello con stato iniziale
-  - `NewModelWithDBC()`: Crea un modello con file DBC caricato
-  - `tickCmd()`: Gestisce gli eventi di tick per l'aggiornamento del modello
-  - `Init()`: Inizializza il modello con i dati del file DBC
-- **update.go**: Gestisce gli aggiornamenti del modello in risposta agli eventi
-  - `Update()`: Logica per aggiornare lo stato del modello in base agli input dell'utente
-- **view.go**: Contiene la logica di rendering delle viste
-  - `View()`: Renderizza l'interfaccia utente in base allo stato del modello
-  - `filePickerView()`: Visualizza il file picker per la selezione dei file DBC
-  - `messageSelectionView()`: Visualizza la lista dei messaggi CAN selezionabili
-  - `monitoringView()`: Visualizza la tabella di monitoraggio dei segnali
+#### `handlers.go` - Core Business Logic
 
-## Esempio di file DBC supportato
+- **DBC Management**: File loading, parsing, and message extraction
+- **Signal Configuration**: Table setup and signal parameter management
+- **Transmission Control**: Individual signal sending with task management
+- **Monitoring Setup**: Real-time signal decoding and table updates
 
-Il tool utilizza acmelib per il parsing dei file DBC. Qualsiasi file DBC standard è supportato.
+#### `update.go` - Event Processing
 
-Esempio con il file `internal/test/MCB.dbc` incluso nel progetto:
+- **Keyboard Input**: Comprehensive key handling for all modes
+- **State Transitions**: Smooth navigation between application states
+- **Real-time Updates**: Window resizing and table cursor management
 
-```bash
-cd /Users/utente/Desktop/can-debug
-./can-debug/can-debug
-# Naviga a: internal/test/MCB.dbc
+#### `view.go` - User Interface
+
+- **Responsive Layout**: Dynamic sizing and content organization
+- **Status Display**: Real-time feedback and instruction panels
+- **Table Rendering**: Signal tables with proper alignment and formatting
+
+#### `types.go` - Data Structures
+
+- **Application State**: Model definitions and state management
+- **Signal Representation**: Enhanced signal structures with transmission control
+- **UI Components**: Table and input field configurations
+
+## 🔧 Technical Details
+
+### CAN Interface Support
+
+#### Linux (Full Support)
+
+```go
+// SocketCAN connection
+conn, err := socketcan.DialContext(context.Background(), "can", "vcan0")
 ```
 
-## Note tecniche
-
-### Visualizzazione segnali DBC
-
-Il tool attualmente mostra la struttura completa dei messaggi selezionati dal file DBC:
-
-- **Nome segnale**: Con unità di misura se disponibili
-- **ID messaggio**: ID CAN in formato esadecimale
-- **Valore segnale**: Valore attuale del segnale in formato decimale
-- **Posizione bit**: Formato "startBit:endBit" per debugging
-- **Tipo segnale**: Standard, enum, o muxor con dimensione in bit
-- **Navigazione**: Tabella scrollabile con frecce ↑/↓
-
-### Integrazione con dati CAN reali  
-
-Per collegare il tool a dati CAN reali, sostituire `showDBCSignals()` con lettura da bus:
-
-1. **Linux con SocketCAN**:
-
-   ```go
-   // In handlers.go, sostituire showDBCSignals() con:
-   func (m *Model) readCANData() {
-       // Leggere da SocketCAN interface
-       // conn, _ := socketcan.Dial("can", "can0")
-       // frame, _ := conn.ReadFrame()
-       // Usare acmelib decoder per processare i frame
-       // decoder := can.NewDecoder(m.Messages)
-       // for _, signal := range decoder.Decode(frame) {
-       //     // Aggiornare tabella con valori reali
-       // }
-   }
-   ```
-
-## Test
-
-### Test manuale con file DBC di esempio
+#### macOS (Send Only)
 
 ```bash
-# Test con caricamento diretto
-./can-debug ./internal/test/MCB.dbc
+# Uses cansend command for transmission
+cansend vcan0 123#DEADBEEF
+```
 
-# Test con file picker (naviga manualmente al file)
+### DBC File Integration
+
+The tool uses `acmelib` for comprehensive DBC file support:
+
+```go
+// DBC parsing and message extraction
+database, err := acmelib.NewDatabaseFromFile(dbcPath)
+messages := database.GetMessages()
+```
+
+### Signal Transmission Architecture
+
+#### Task-Based Management
+
+- **Concurrent Goroutines**: Each signal runs in its own goroutine
+- **Unique Task IDs**: Proper cleanup and control of individual signals
+- **Ticker-Based Timing**: Precise frequency control with time.Ticker
+
+#### Example Implementation
+
+```go
+// Individual signal transmission
+go func(signal *SendSignal, taskID int) {
+    ticker := time.NewTicker(time.Duration(signal.CycleTime) * time.Millisecond)
+    defer ticker.Stop()
+  
+    for {
+        select {
+        case <-ticker.C:
+            // Send CAN message
+            sendCANMessage(signal)
+        case <-stopChannel:
+            return
+        }
+    }
+}(signal, taskID)
+```
+
+## 🧪 Testing
+
+### Manual Testing with Example DBC
+
+```bash
+# Test with direct file loading
+./can-debug internal/test/MCB.dbc
+
+# Test file picker functionality
 ./can-debug
+# Navigate to: internal/test/MCB.dbc
 ```
 
-### Contribuire
+### Platform Testing
 
-1. Fork del progetto
-2. Crea un branch per la feature (`git checkout -b feature/nuova-funzione`)
-3. Commit delle modifiche (`git commit -am 'Aggiunge nuova funzione'`)
-4. Push del branch (`git push origin feature/nuova-funzione`)
-5. Apri una Pull Request
+#### Linux with Virtual CAN
 
-## Licenza
+```bash
+# Setup virtual CAN interface
+sudo modprobe vcan
+sudo ip link add dev vcan0 type vcan
+sudo ip link set up vcan0
 
-Vedi il file LICENSE nel progetto principale.
+# Run tool with SocketCAN
+./can-debug internal/test/MCB.dbc
+```
+
+#### macOS with can-utils
+
+```bash
+# Install can-utils (if available)
+# Configure virtual interface
+./can-debug internal/test/MCB.dbc
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. **Fork the Repository**
+2. **Create a Feature Branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Commit Your Changes**
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+4. **Push to Branch**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+5. **Open a Pull Request**
+
+### Development Guidelines
+
+- Follow Go conventions and best practices
+- Maintain TUI responsiveness and user experience
+- Add comprehensive comments for complex logic
+- Test on multiple platforms when possible
+
+## 📚 Example Usage Scenarios
+
+### Automotive Testing
+
+```bash
+# Load vehicle DBC file
+./can-debug vehicle_network.dbc
+
+# Select powertrain messages
+# Configure RPM signal: 100ms cycle time
+# Configure throttle position: 50ms cycle time
+# Start continuous transmission for engine simulation
+```
+
+### Industrial Automation
+
+```bash
+# Load machine control DBC
+./can-debug machine_control.dbc
+
+# Monitor sensor feedback signals
+# Send actuator commands with precise timing
+# Use emergency stop for safety testing
+```
+
+### Development and Debugging
+
+```bash
+# Quick signal testing
+./can-debug test_network.dbc
+
+# Single-shot signal verification
+# Cycle time optimization testing
+# Protocol compliance validation
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### "No CAN interface found"
+
+- **Linux**: Ensure SocketCAN interface is up (`ip link show`)
+- **macOS**: Install can-utils package
+- **Solution**: Tool continues in test mode if no interface available
+
+#### "DBC file parsing error"
+
+- **Cause**: Invalid or corrupted DBC file
+- **Solution**: Verify DBC file format and syntax
+
+#### "Signal transmission not working"
+
+- **Linux**: Check SocketCAN permissions and interface status
+- **macOS**: Verify can-utils installation and virtual interface setup
