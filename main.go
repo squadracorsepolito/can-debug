@@ -73,23 +73,44 @@ Use:
 
 Examples:
   can-debug                           # Use the file picker
-  can-debug ../../test/server/MCB.dbc # Load specific file
+  can-debug internal/test/MCB.dbc     # Load specific file
 
 Platform Support:
   Linux:   Uses SocketCAN (vcan0) for sending and receiving
   macOS:   Uses cansend command for sending (receiving disabled)
            Make sure can-utils is installed and vcan0 is configured
 
-Commands:
-  ↑/↓ o k/j    Navigation
-  Space        Select/deselect message
-  Enter        Confirm/start monitoring
-  Tab          Change section/go back
-  /            Search (in the message list)
-  q            Quit
+Navigation Commands:
+  ↑/↓ or k/j   Navigate up/down in lists and tables
+  Tab          Go back to previous screen
+  q            Quit application
 
-Send Mode:
-  Enter your message and press Enter to send via CAN
-  Tab to return to mode selection
+File Selection:
+  Enter        Open directory or select .dbc file
+
+Send/Receive Mode Selection:
+  ↑/↓          Choose between Send or Receive mode
+  Enter        Confirm selection
+
+Message List:
+  /            Search messages
+  Space        Select/deselect message for monitoring or sending
+  Enter        Confirm selection and proceed
+
+Send Configuration:
+  Navigation:  ↑/↓ move between signals • Tab go back • q quit
+  Action:      Enter send once • Space toggle continuous sending
+               ←→ adjust cycle time • s stop all signals
+
+  Individual Signal Control:
+    - Each signal has its own frequency (cycle time) in milliseconds
+    - Use ←→ arrows to adjust cycle time (50ms increments, range: 50ms-10s)
+    - Enter: Send signal once (single shot)
+    - Space: Toggle continuous sending at set frequency
+    - s: Emergency stop all continuous signals
+    - Input field: Enter signal value (supports decimals, negatives)
+
+Receive Mode (Monitoring):
+  Real-time monitoring of selected CAN messages with signal decoding
 `)
 }
