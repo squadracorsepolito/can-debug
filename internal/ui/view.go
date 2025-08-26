@@ -216,7 +216,7 @@ func (m Model) sendConfigurationView() string {
 
 	// Instructions organized by category
 	s.WriteString("Navigation: ↑/k up • ↓/j down • Tab back • q quit\n")
-	s.WriteString("Action: Enter send once • Space toggle continuous • ←→ adjust cycle • s stop all")
+	s.WriteString("Action: Enter send message • Space toggle message • ←→ adjust message cycle • s stop all")
 	s.WriteString("\n\n")
 
 	// Show individual signal status if any are active

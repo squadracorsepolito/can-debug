@@ -687,6 +687,60 @@ func (m *Model) stopCyclicalSending() {
 	// TODO: Implement actual stopping of cyclical CAN sending
 }
 
+// toggleMessageSending toggles the active state of all signals in a message
+func (m *Model) toggleMessageSending(index int) {
+	if index >= 0 && index < len(m.SendSignals) {
+		currentSignal := &m.SendSignals[index]
+		messageID := currentSignal.ID
+		messageName := currentSignal.MessageName
+
+		// Determine if any signal in this message is currently active
+		anyActive := false
+		for i := range m.SendSignals {
+			if m.SendSignals[i].ID == messageID && m.SendSignals[i].IsActive {
+				anyActive = true
+				break
+			}
+		}
+
+		// Toggle all signals in this message to the opposite state
+		newState := !anyActive
+		activeCount := 0
+
+		for i := range m.SendSignals {
+			signal := &m.SendSignals[i]
+			if signal.ID == messageID {
+				// Validate that the value is entered if starting
+				if newState && signal.TextInput.Value() == "" {
+					m.SendStatus = fmt.Sprintf("Please enter a value for signal '%s' in message '%s'", signal.SignalName, messageName)
+					return
+				}
+
+				signal.IsActive = newState
+
+				if signal.IsActive {
+					// Start sending this signal individually
+					m.startIndividualSignalSending(i)
+					activeCount++
+				} else {
+					// Stop sending this signal
+					m.stopIndividualSignalSending(i)
+				}
+			}
+		}
+
+		// Update the table to reflect the new status
+		m.updateSendTableRows()
+
+		// Show status message
+		if newState {
+			m.SendStatus = fmt.Sprintf("▶️ Started continuous sending of message '%s' (%d signals)", messageName, activeCount)
+		} else {
+			m.SendStatus = fmt.Sprintf("⏸️ Stopped sending message '%s'", messageName)
+		}
+	}
+}
+
 // toggleSignalSending toggles the active state of a specific signal
 func (m *Model) toggleSignalSending(index int) {
 	if index >= 0 && index < len(m.SendSignals) {
@@ -776,6 +830,84 @@ func (m *Model) stopIndividualSignalSending(index int) {
 
 			m.SendStatus = fmt.Sprintf("⏸️ Stopped sending %s", signal.SignalName)
 		}
+	}
+}
+
+// sendSingleMessage sends all signals of a message once
+func (m *Model) sendSingleMessage(index int) {
+	if index >= 0 && index < len(m.SendSignals) {
+		currentSignal := &m.SendSignals[index]
+		messageID := currentSignal.ID
+		messageName := currentSignal.MessageName
+
+		// Find all signals for this message and send them
+		sentCount := 0
+		for i := range m.SendSignals {
+			signal := &m.SendSignals[i]
+			if signal.ID == messageID {
+				// Validate that the value is entered
+				if signal.TextInput.Value() == "" {
+					m.SendStatus = fmt.Sprintf("Please enter a value for signal '%s' in message '%s'", signal.SignalName, messageName)
+					return
+				}
+
+				// Mark as single shot and count
+				signal.IsSingleShot = true
+				sentCount++
+			}
+		}
+
+		// Update display
+		m.updateSendTableRows()
+
+		// TODO: Implement actual CAN sending logic here
+		// For now, just show success message
+		m.SendStatus = fmt.Sprintf("📤 Sent message '%s' (%d signals) once", messageName, sentCount)
+
+		// Reset single shot flags after a brief moment
+		go func() {
+			time.Sleep(2 * time.Second)
+			for i := range m.SendSignals {
+				signal := &m.SendSignals[i]
+				if signal.ID == messageID {
+					signal.IsSingleShot = false
+				}
+			}
+			m.updateSendTableRows()
+		}()
+	}
+}
+
+// adjustMessageCycleTime adjusts cycle time for all signals of a message
+func (m *Model) adjustMessageCycleTime(index int, delta int) {
+	if index >= 0 && index < len(m.SendSignals) {
+		currentSignal := &m.SendSignals[index]
+		messageID := currentSignal.ID
+		messageName := currentSignal.MessageName
+
+		// Calculate new cycle time with bounds checking
+		newCycleTime := currentSignal.CycleTime + delta
+		if newCycleTime < 50 {
+			newCycleTime = 50 // min 50ms
+		}
+		if newCycleTime > 10000 {
+			newCycleTime = 10000 // max 10 seconds
+		}
+
+		// Apply to all signals of this message
+		for i := range m.SendSignals {
+			signal := &m.SendSignals[i]
+			if signal.ID == messageID {
+				signal.CycleTime = newCycleTime
+				signal.IsSingleShot = false // Reset single shot when adjusting cycle
+			}
+		}
+
+		// Update display
+		m.updateSendTableRows()
+
+		// Show status
+		m.SendStatus = fmt.Sprintf("🔄 Set cycle time to %dms for message '%s'", newCycleTime, messageName)
 	}
 }
 

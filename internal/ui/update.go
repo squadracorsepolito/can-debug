@@ -154,14 +154,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "enter":
-				// Send once the current signal
+				// Send once all signals of the current message
 				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					m.sendSingleSignal(m.CurrentInputIndex)
+					m.sendSingleMessage(m.CurrentInputIndex)
 				}
 			case " ":
-				// Toggle start/stop for current signal
+				// Toggle start/stop for all signals of the current message
 				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					m.toggleSignalSending(m.CurrentInputIndex)
+					m.toggleMessageSending(m.CurrentInputIndex)
 				}
 			case "c":
 				// Edit cycle time for current signal
@@ -170,40 +170,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.setCycleTimePrompt(m.CurrentInputIndex)
 				}
 			case "right", "l":
-				// Increase cycle time for current signal
+				// Increase cycle time for all signals of the current message
 				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					signal := &m.SendSignals[m.CurrentInputIndex]
-					if signal.CycleTime < 10000 { // max 10 seconds
-						signal.CycleTime += 50
-						signal.IsSingleShot = false // Reset single shot when adjusting cycle
-						m.updateSendTableRows()
-					}
+					m.adjustMessageCycleTime(m.CurrentInputIndex, 50)
 				}
 			case "left":
-				// Decrease cycle time for current signal
+				// Decrease cycle time for all signals of the current message
 				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					signal := &m.SendSignals[m.CurrentInputIndex]
-					if signal.CycleTime > 50 { // min 50ms
-						signal.CycleTime -= 50
-						signal.IsSingleShot = false // Reset single shot when adjusting cycle
-						m.updateSendTableRows()
-					}
+					m.adjustMessageCycleTime(m.CurrentInputIndex, -50)
 				}
 			case "s":
 				// Stop all signal sending
 				m.stopAllSignalSending()
-			case "+", "=":
-				// Increase cycle time for current signal (alternative)
-				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					signal := &m.SendSignals[m.CurrentInputIndex]
-					if signal.CycleTime < 10000 { // max 10 seconds
-						signal.CycleTime += 50
-						signal.IsSingleShot = false // Reset single shot when adjusting cycle
-						m.updateSendTableRows()
-					}
-				}
 			case "-":
-				// Decrease cycle time for current signal (only if not entering negative numbers)
+				// Handle '-' for negative numbers in input field
 				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
 					// Check if we're in input mode and the input is focused
 					currentInput := &m.SendSignals[m.CurrentInputIndex].TextInput
@@ -212,15 +192,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						*currentInput, cmd = currentInput.Update(msg)
 						cmds = append(cmds, cmd)
 						m.updateSendTableRows()
-					} else {
-						// We're not in input mode, decrease cycle time
-						signal := &m.SendSignals[m.CurrentInputIndex]
-						if signal.CycleTime > 50 { // min 50ms
-							signal.CycleTime -= 50
-							signal.IsSingleShot = false // Reset single shot when adjusting cycle
-							signal.CycleTime -= 50
-							m.updateSendTableRows()
-						}
 					}
 				}
 			case "up", "k":
