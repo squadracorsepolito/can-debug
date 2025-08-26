@@ -178,42 +178,6 @@ func (m Model) sendReceiveSelectorView() string {
 	return s.String()
 }
 
-// sendingView renders the sending view
-func (m Model) sendingView() string {
-	var s strings.Builder
-
-	s.WriteString(lipgloss.NewStyle().Bold(true).Render("📤 Send CAN messages"))
-	s.WriteString(fmt.Sprintf(" (File: %s)", m.DBCPath))
-	s.WriteString("\n\n")
-
-	s.WriteString("Enter send • Tab back to selection mode • q quit")
-	s.WriteString("\n\n")
-
-	s.WriteString(m.TextInput.View())
-	s.WriteString("\n\n")
-
-	// Status and last sent message
-	if m.LastSentMessage != "" {
-		// Show success message with last sent message
-		s.WriteString(fmt.Sprintf("✅ Last sent message: \"%s\"", m.LastSentMessage))
-		s.WriteString("\n")
-
-		if m.SendStatus != "" {
-			wrappedStatus := m.wrapStatus(m.SendStatus, m.Width)
-			s.WriteString(fmt.Sprintf("\n💬 Status: %s", wrappedStatus))
-		}
-	} else if m.SendStatus != "" {
-		// Show only status (error or initial state)
-		wrappedStatus := m.wrapStatus(m.SendStatus, m.Width)
-		s.WriteString(fmt.Sprintf("💬 Status: %s", wrappedStatus))
-	} else {
-		// Initial state
-		s.WriteString("💡 No message sent yet.")
-	}
-
-	return s.String()
-}
-
 // sendConfigurationView renders the send configuration view
 func (m Model) sendConfigurationView() string {
 	var s strings.Builder
@@ -227,25 +191,14 @@ func (m Model) sendConfigurationView() string {
 	s.WriteString("Action: Enter send message • Space toggle message • ←→ adjust message cycle • s stop all")
 	s.WriteString("\n\n")
 
-	// Show individual signal status if any are active
-	activeCount := 0
-	for _, signal := range m.SendSignals {
-		if signal.IsActive {
-			activeCount++
-		}
-	}
-	if activeCount > 0 {
-		s.WriteString(fmt.Sprintf("🎯 Continuous signals active: %d/%d\n", activeCount, len(m.SendSignals)))
-		s.WriteString("\n")
-	}
-
 	// Show the send table
 	if len(m.SendSignals) > 0 {
 		s.WriteString(m.SendTable.View())
 		s.WriteString("\n\n")
 	}
 
-	// Status
+	// Status TODO gestione degli stati --------------------------------------------------------------------------
+	activeCount := 0
 	if m.SendStatus != "" {
 		wrappedStatus := m.wrapStatus(m.SendStatus, m.Width)
 		s.WriteString(fmt.Sprintf("💬 Status: %s", wrappedStatus))

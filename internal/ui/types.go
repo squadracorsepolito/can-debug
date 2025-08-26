@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -11,12 +12,15 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/squadracorsepolito/acmelib"
+	"go.einride.tech/can/pkg/socketcan"
 
 	"github.com/squadracorsepolito/can-debug/internal/can"
 )
 
 // State represents the current state of the UI
 type State int
+
+const rangeMs int = 10 
 
 const (
 	StateFilePicker State = iota
@@ -56,17 +60,21 @@ func (c CANMessage) Description() string {
 
 func (c CANMessage) FilterValue() string { return c.Name }
 
+// infoSending contains info of the message being currenty send (cyclically)
+// frequancy is the frequency at wich is being sent (in ms)
+// stop is the function that needs to be call in order to stop the sending
+type infoSending struct{
+	frequency int
+	stop context.CancelFunc
+}
+
 // SendSignal represents a signal to be sent with its input field
 type SendSignal struct {
-	MessageName  string
-	ID           uint32
 	SignalName   string
 	Unit         string
 	TextInput    textinput.Model
 	Value        string
-	CycleTime    int  // cycle time in milliseconds for this specific message
 	IsActive     bool // whether this signal/message is actively being sent
-	TaskID       int  // unique ID for the task (for stopping)
 	IsSingleShot bool // true if this is a single shot send (shows "-" in cycle column)
 }
 
@@ -86,23 +94,25 @@ type Model struct {
 	Height             int
 	Err                error
 	CanNetwork         net.Conn
-	// send/receive functionality
+	Transmitter        socketcan.Transmitter
+ 	// send/receive functionality
 	SendReceiveChoice         int // 0 = send, 1 = receive
 	PreviousSendReceiveChoice int // to track when mode actually changes
-	TextInput                 textinput.Model
-	LastSentMessage           string
 	SendStatus                string // Status message for sending operations
 	// send configuration fields
 	SendSignals       []SendSignal
 	SendTable         table.Model
 	CurrentInputIndex int // which input is currently focused
-	// task management for individual message sending
-	NextTaskID  int                   // counter for unique task IDs
-	ActiveTasks map[int]chan struct{} // map of taskID -> stop channel
-	// cyclical sending options (global, deprecated - use per-message cycle time)
-	SendMode          int  // 0 = single send, 1 = cyclical send
-	SendInterval      int  // interval in milliseconds for cyclical sending (default 100ms)
-	IsSendingCyclical bool // flag to track if cyclical sending is active
+	CycleTime         int
+	// data structure for message sending
+
+	ActiveMessages map[int]infoSending //map of messageID -> struct with info of the message being currenty send (cyclically) 
+
+
+
+
+
+	
 }
 
 // Message for updating real-time data

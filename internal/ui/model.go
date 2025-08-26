@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/filepicker"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"go.einride.tech/can/pkg/socketcan"
 )
 
 // NewModel create a new model for the UI
@@ -18,28 +18,18 @@ func NewModel(CanNet net.Conn) Model {
 	fp.DirAllowed = true
 	fp.FileAllowed = true
 
-	ti := textinput.New()
-	ti.Placeholder = "Enter a new message..."
-	ti.Focus()
-	ti.CharLimit = 156
-	ti.Width = 50
-
 	return Model{
 		State:                     StateFilePicker,
 		FilePicker:                fp,
 		SelectedMessages:          make([]CANMessage, 0),
 		LastUpdate:                time.Now(),
 		CanNetwork:                CanNet,
+		Transmitter:               *socketcan.NewTransmitter(CanNet),
 		SendReceiveChoice:         0,
 		PreviousSendReceiveChoice: 0, // Initialize to same as current
-		TextInput:                 ti,
 		SendSignals:               make([]SendSignal, 0),
 		CurrentInputIndex:         -1,
-		NextTaskID:                1,
-		ActiveTasks:               make(map[int]chan struct{}),
-		SendMode:                  0,   // default to single send
-		SendInterval:              100, // default 100ms
-		IsSendingCyclical:         false,
+		ActiveMessages:            make(map[int]infoSending),
 	}
 }
 

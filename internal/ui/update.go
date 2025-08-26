@@ -177,33 +177,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				// Send once all signals of the current message
-				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					m.sendSingleMessage(m.CurrentInputIndex)
-				}
+				m.sendSingleMessage()
 			case " ":
 				// Toggle start/stop for all signals of the current message
-				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					m.toggleMessageSending(m.CurrentInputIndex)
-				}
-			case "c":
-				// Edit cycle time for current signal
-				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					// Create a simple prompt for cycle time (in future can be improved)
-					m.setCycleTimePrompt(m.CurrentInputIndex)
+				_, ok := m.ActiveMessages[int(m.SelectedMessages[0].ID)];
+				if ok{
+					m.stopCyclicalSending()
+				}else{
+					m.startCyclicalSending()
 				}
 			case "right", "l":
 				// Increase cycle time for all signals of the current message
-				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					m.adjustMessageCycleTime(m.CurrentInputIndex, 50)
-				}
+				m.adjustMessageCycleTime(rangeMs)
 			case "left":
 				// Decrease cycle time for all signals of the current message
-				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
-					m.adjustMessageCycleTime(m.CurrentInputIndex, -50)
-				}
+				m.adjustMessageCycleTime(-rangeMs)
 			case "s":
-				// Stop all signal sending
-				m.stopAllSignalSending()
+				// Stop ALL message sending
+				m.stopAllMessages()
 			case "-":
 				// Handle '-' for negative numbers in input field
 				if m.CurrentInputIndex >= 0 && m.CurrentInputIndex < len(m.SendSignals) {
