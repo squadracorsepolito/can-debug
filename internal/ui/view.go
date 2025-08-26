@@ -197,13 +197,10 @@ func (m Model) sendConfigurationView() string {
 		s.WriteString("\n\n")
 	}
 
-	// Status TODO gestione degli stati --------------------------------------------------------------------------
-	activeCount := 0
+	// Show status messages if available
 	if m.SendStatus != "" {
 		wrappedStatus := m.wrapStatus(m.SendStatus, m.Width)
 		s.WriteString(fmt.Sprintf("💬 Status: %s", wrappedStatus))
-	} else if activeCount > 0 {
-		s.WriteString("🎯 Continuous signals are running. Use Space to start/stop, Enter to send once.")
 	} else {
 		s.WriteString("💡 Enter values, set cycle times. Use Enter to send once or Space for continuous sending.")
 	}

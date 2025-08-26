@@ -74,7 +74,6 @@ type SendSignal struct {
 	Unit         string
 	TextInput    textinput.Model
 	Value        string
-	IsActive     bool // whether this signal/message is actively being sent
 	IsSingleShot bool // true if this is a single shot send (shows "-" in cycle column)
 }
 
@@ -105,14 +104,7 @@ type Model struct {
 	CurrentInputIndex int // which input is currently focused
 	CycleTime         int
 	// data structure for message sending
-
 	ActiveMessages map[int]infoSending //map of messageID -> struct with info of the message being currenty send (cyclically) 
-
-
-
-
-
-	
 }
 
 // Message for updating real-time data
