@@ -87,10 +87,11 @@ type Model struct {
 	Err                error
 	CanNetwork         net.Conn
 	// send/receive functionality
-	SendReceiveChoice int // 0 = send, 1 = receive
-	TextInput         textinput.Model
-	LastSentMessage   string
-	SendStatus        string // Status message for sending operations
+	SendReceiveChoice         int // 0 = send, 1 = receive
+	PreviousSendReceiveChoice int // to track when mode actually changes
+	TextInput                 textinput.Model
+	LastSentMessage           string
+	SendStatus                string // Status message for sending operations
 	// send configuration fields
 	SendSignals       []SendSignal
 	SendTable         table.Model

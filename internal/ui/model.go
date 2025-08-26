@@ -25,20 +25,21 @@ func NewModel(CanNet net.Conn) Model {
 	ti.Width = 50
 
 	return Model{
-		State:             StateFilePicker,
-		FilePicker:        fp,
-		SelectedMessages:  make([]CANMessage, 0),
-		LastUpdate:        time.Now(),
-		CanNetwork:        CanNet,
-		SendReceiveChoice: 0,
-		TextInput:         ti,
-		SendSignals:       make([]SendSignal, 0),
-		CurrentInputIndex: -1,
-		NextTaskID:        1,
-		ActiveTasks:       make(map[int]chan struct{}),
-		SendMode:          0,   // default to single send
-		SendInterval:      100, // default 100ms
-		IsSendingCyclical: false,
+		State:                     StateFilePicker,
+		FilePicker:                fp,
+		SelectedMessages:          make([]CANMessage, 0),
+		LastUpdate:                time.Now(),
+		CanNetwork:                CanNet,
+		SendReceiveChoice:         0,
+		PreviousSendReceiveChoice: 0, // Initialize to same as current
+		TextInput:                 ti,
+		SendSignals:               make([]SendSignal, 0),
+		CurrentInputIndex:         -1,
+		NextTaskID:                1,
+		ActiveTasks:               make(map[int]chan struct{}),
+		SendMode:                  0,   // default to single send
+		SendInterval:              100, // default 100ms
+		IsSendingCyclical:         false,
 	}
 }
 

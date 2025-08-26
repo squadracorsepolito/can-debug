@@ -97,21 +97,43 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "up", "k":
 				if m.SendReceiveChoice > 0 {
 					m.SendReceiveChoice--
+					// Clear selected messages when changing mode
+					m.SelectedMessages = []CANMessage{}
+					m.updateMessageListItems() // Update visual representation
+					// Note: don't update PreviousSendReceiveChoice here,
+					// it will be updated when Enter is pressed
 				}
 			case "down", "j":
 				if m.SendReceiveChoice < 1 {
 					m.SendReceiveChoice++
+					// Clear selected messages when changing mode
+					m.SelectedMessages = []CANMessage{}
+					m.updateMessageListItems() // Update visual representation
+					// Note: don't update PreviousSendReceiveChoice here,
+					// it will be updated when Enter is pressed
 				}
 			case "enter":
+				// Check if mode actually changed since last time
+				modeChanged := m.SendReceiveChoice != m.PreviousSendReceiveChoice
+
 				if m.SendReceiveChoice == 0 {
 					// Send mode - go to message selector
 					m.State = StateMessageSelector
+					if modeChanged {
+						m.SelectedMessages = []CANMessage{} // Clear selection only if mode changed
+					}
 					m.setupMessageList()
 				} else {
 					// Receive mode
 					m.State = StateMessageSelector
+					if modeChanged {
+						m.SelectedMessages = []CANMessage{} // Clear selection only if mode changed
+					}
 					m.setupMessageList()
 				}
+
+				// Update previous choice to current
+				m.PreviousSendReceiveChoice = m.SendReceiveChoice
 			}
 		}
 

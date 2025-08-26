@@ -107,21 +107,29 @@ func (m *Model) setupMessageList() {
 // toggleMessageSelection toggles the selection of a message
 func (m *Model) toggleMessageSelection() {
 	if selectedItem, ok := m.MessageList.SelectedItem().(CANMessage); ok {
-		// Check if the message is already selected
-		found := false
-		for i, msg := range m.SelectedMessages {
-			if msg.ID == selectedItem.ID {
-				// Remove from selection
-				m.SelectedMessages = append(m.SelectedMessages[:i], m.SelectedMessages[i+1:]...)
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			// Add to selection
+		if m.SendReceiveChoice == 0 {
+			// Send mode - solo un messaggio alla volta
+			m.SelectedMessages = []CANMessage{} // Clear all selections first
 			selectedItem.Selected = true
 			m.SelectedMessages = append(m.SelectedMessages, selectedItem)
+		} else {
+			// Receive mode - selezione multipla come prima
+			// Check if the message is already selected
+			found := false
+			for i, msg := range m.SelectedMessages {
+				if msg.ID == selectedItem.ID {
+					// Remove from selection
+					m.SelectedMessages = append(m.SelectedMessages[:i], m.SelectedMessages[i+1:]...)
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				// Add to selection
+				selectedItem.Selected = true
+				m.SelectedMessages = append(m.SelectedMessages, selectedItem)
+			}
 		}
 
 		// Update the list items
@@ -167,7 +175,7 @@ func (m *Model) setupMonitoringTable() {
 	columns := []table.Column{
 		{Title: "Message", Width: 25},
 		{Title: "ID", Width: 8},
-		{Title: "Signal", Width: 30},
+		{Title: "Signal", Width: 35},
 		{Title: "Value", Width: 20},
 		{Title: "Raw", Width: 15},
 		{Title: "Type", Width: 20},
@@ -532,7 +540,7 @@ func (m *Model) setupSendTable() {
 	columns := []table.Column{
 		{Title: "Message", Width: 25},
 		{Title: "ID", Width: 8},
-		{Title: "Signal", Width: 30},
+		{Title: "Signal", Width: 35},
 		{Title: "Cycle(ms)", Width: 10},
 		{Title: "Status", Width: 10},
 		{Title: "Value", Width: 25},

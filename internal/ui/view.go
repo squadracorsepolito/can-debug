@@ -105,7 +105,15 @@ func (m Model) messageSelectorView() string {
 
 	// Status bar with commands for the message list
 	s.WriteString("Navigation: ↑/k up • ↓/j down • / filter • Tab back to mode selection • q quit\n")
-	s.WriteString("Actions: Space select/deselect • Enter start monitoring\n")
+
+	// Different instructions based on send/receive mode
+	if m.SendReceiveChoice == 0 {
+		// Send mode - single selection
+		s.WriteString("Actions: Space select message • Enter configure sending\n")
+	} else {
+		// Receive mode - multiple selection
+		s.WriteString("Actions: Space select/deselect • Enter start monitoring\n")
+	}
 	s.WriteString("\n") // Single newline instead of double
 
 	s.WriteString(m.MessageList.View())
