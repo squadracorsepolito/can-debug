@@ -54,6 +54,10 @@ func (m *Model) loadDBC() error {
 
 	m.Decoder = canDebug.NewDecoder(m.Messages)
 
+	// Initialize the MessageList immediately after loading messages
+	// This prevents null pointer issues when switching between send/receive modes
+	m.setupMessageList()
+
 	return nil
 }
 
@@ -73,8 +77,8 @@ func (m *Model) setupMessageList() {
 
 		//check if the message is being sent
 		cycleMessage := ""
-		mex, ok := m.ActiveMessages[int(msg.GetCANID())];
-		if ok{
+		mex, ok := m.ActiveMessages[int(msg.GetCANID())]
+		if ok {
 			cycleMessage = fmt.Sprintf(" - (Currently being send every %dms)", mex.frequency)
 		}
 
@@ -142,6 +146,11 @@ func (m *Model) toggleMessageSelection() {
 
 // updateMessageListItems updates the list items without rebuilding it
 func (m *Model) updateMessageListItems() {
+	// Check if MessageList has been initialized
+	if m.MessageList.Items() == nil {
+		return
+	}
+
 	items := make([]list.Item, 0, len(m.Messages))
 
 	for _, msg := range m.Messages {
@@ -156,8 +165,8 @@ func (m *Model) updateMessageListItems() {
 
 		//check if the message is being sent
 		cycleMessage := ""
-		mex, ok := m.ActiveMessages[int(msg.GetCANID())];
-		if ok{
+		mex, ok := m.ActiveMessages[int(msg.GetCANID())]
+		if ok {
 			cycleMessage = fmt.Sprintf(" - (Currently being send every %dms)", mex.frequency)
 		}
 
@@ -348,12 +357,12 @@ func (m *Model) setupSendConfiguration() {
 	m.SendSignals = make([]SendSignal, 0)
 
 	// Create send signals from selected messages
-	m.CycleTime = rangeMs;
+	m.CycleTime = rangeMs
 	msg := m.SelectedMessages[0]
 	for _, signal := range msg.Message.Signals() {
 		sendSignal := SendSignal{
-			SignalName:  signal.Name(),
-			Value:       "0",   // default value
+			SignalName: signal.Name(),
+			Value:      "0", // default value
 		}
 
 		// Extract unit information from the signal
@@ -400,10 +409,10 @@ func (m *Model) setupSendTable() {
 	}
 
 	var status string
-	_, ok := m.ActiveMessages[int(m.SelectedMessages[0].ID)];
-	if ok{
+	_, ok := m.ActiveMessages[int(m.SelectedMessages[0].ID)]
+	if ok {
 		status = "▶️  sending"
-	}else{
+	} else {
 		status = "⏸️  stopped"
 	}
 
@@ -454,12 +463,12 @@ func (m *Model) setupSendTable() {
 // updateSendTableRows updates the send table with current input values
 func (m *Model) updateSendTableRows() {
 	rows := make([]table.Row, len(m.SendSignals))
-	
+
 	var status string
-	_, ok := m.ActiveMessages[int(m.SelectedMessages[0].ID)];
-	if ok{
+	_, ok := m.ActiveMessages[int(m.SelectedMessages[0].ID)]
+	if ok {
 		status = "▶️  sending"
-	}else{
+	} else {
 		status = "⏸️  stopped"
 	}
 
@@ -525,34 +534,32 @@ func (m *Model) sendConfiguredSignals() {
 	m.SendStatus = fmt.Sprintf("✅  Sent signals: %s", strings.Join(signalNames, ", "))
 }
 
-
-
 // This starts a goroutine to send the current selected message cyclically
 func (m *Model) startCyclicalSending() {
 	messageID := m.SelectedMessages[0].ID //ID in decimal
 	messageName := m.SelectedMessages[0].Name
-	
+
 	//build info for stopping the message
 	ctx, cancel := context.WithCancel(context.Background())
 	mex := infoSending{
-		stop: cancel,
+		stop:      cancel,
 		frequency: m.CycleTime,
 	}
 	m.ActiveMessages[int(messageID)] = mex
 
 	//this goroutine sends a message every 'interval' of time, ctx is used to stop
-	go func(interval time.Duration, ctx context.Context){
+	go func(interval time.Duration, ctx context.Context) {
 		tick := time.NewTicker(interval)
 		defer tick.Stop()
-		for{
-			select{
-			case <- ctx.Done():
+		for {
+			select {
+			case <-ctx.Done():
 				return
-			case <- tick.C:
+			case <-tick.C:
 				//TODO inviare roba---------------------------------------------------------------------------------------------
 			}
 		}
-	}(time.Duration(mex.frequency) * time.Millisecond, ctx)
+	}(time.Duration(mex.frequency)*time.Millisecond, ctx)
 
 	m.SendStatus = fmt.Sprintf("🔄  Message '%s': Cyclical sending started (interval: %dms).", messageName, m.CycleTime)
 	// Update the table to reflect the new status
@@ -565,15 +572,15 @@ func (m *Model) stopCyclicalSending() {
 	messageName := m.SelectedMessages[0].Name
 
 	//stop goroutine that is sending the message
-	mex := m.ActiveMessages[int(messageID)];
+	mex := m.ActiveMessages[int(messageID)]
 	mex.stop()
 	delete(m.ActiveMessages, int(messageID))
 	m.SendStatus = fmt.Sprintf("🛑 Message '%s': Cyclical sending stopped", messageName)
 	m.updateSendTableRows()
 }
 
-func (m *Model) stopAllMessages(){
-	for id, mex := range m.ActiveMessages{
+func (m *Model) stopAllMessages() {
+	for id, mex := range m.ActiveMessages {
 		mex.stop()
 		delete(m.ActiveMessages, id)
 	}
@@ -643,8 +650,8 @@ func (m *Model) ensureTableCursorVisible() {
 	}
 }
 
-//TODO bisogna fare l'encoding, impazzisco ----------------------------------------------------------------
-func (m *Model) genarateFrame() can.Frame{
+// TODO bisogna fare l'encoding, impazzisco ----------------------------------------------------------------
+func (m *Model) genarateFrame() can.Frame {
 	frame := can.Frame{}
 	return frame
 }

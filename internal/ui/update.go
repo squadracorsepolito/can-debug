@@ -99,7 +99,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.SendReceiveChoice--
 					// Clear selected messages when changing mode
 					m.SelectedMessages = []CANMessage{}
-					m.updateMessageListItems() // Update visual representation
+					// Only update if MessageList has been initialized
+					if len(m.MessageList.Items()) > 0 {
+						m.updateMessageListItems() // Update visual representation
+					}
 					// Note: don't update PreviousSendReceiveChoice here,
 					// it will be updated when Enter is pressed
 				}
@@ -108,7 +111,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.SendReceiveChoice++
 					// Clear selected messages when changing mode
 					m.SelectedMessages = []CANMessage{}
-					m.updateMessageListItems() // Update visual representation
+					// Only update if MessageList has been initialized
+					if len(m.MessageList.Items()) > 0 {
+						m.updateMessageListItems() // Update visual representation
+					}
 					// Note: don't update PreviousSendReceiveChoice here,
 					// it will be updated when Enter is pressed
 				}
@@ -180,10 +186,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sendSingleMessage()
 			case " ":
 				// Toggle start/stop for all signals of the current message
-				_, ok := m.ActiveMessages[int(m.SelectedMessages[0].ID)];
-				if ok{
+				_, ok := m.ActiveMessages[int(m.SelectedMessages[0].ID)]
+				if ok {
 					m.stopCyclicalSending()
-				}else{
+				} else {
 					m.startCyclicalSending()
 				}
 			case "right", "l":
