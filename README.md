@@ -1,6 +1,6 @@
 # CAN Debug Tool
 
-A comprehensive CAN bus debugging tool with a Terminal User Interface (TUI) built with Bubble Tea. This tool provides advanced functionality for sending and receiving CAN messages with individual message control and DBC file support.
+A CAN bus debugging tool with a Terminal User Interface (TUI) built with Bubble Tea. This tool provides advanced functionality for sending and receiving CAN messages with individual message control and DBC file support.
 
 ## 🚀 Features
 
@@ -9,15 +9,15 @@ A comprehensive CAN bus debugging tool with a Terminal User Interface (TUI) buil
 - **DBC File Support**: Load and parse DBC files for comprehensive CAN message definitions
 - **Dual Mode Operation**: Choose between Send and Receive modes
 - **Real-time Monitoring**: Live CAN message reception and signal decoding
-- **Advanced Signal Transmission**: Individual frequency control for each message
+- **Signal Transmission**: Individual frequency control for each message
 
 ### Send Mode Features
 
-- **Individual Message Control**: Each message has its own transmission frequency (10ms to 10s) ***(can be changed by changing the value rangeMs in internal/ui/types.go)***
+- **Individual Message Control**: Each message has its own transmission frequency (10ms to 10s) *(can be modified by changing the value rangeMs in internal/ui/types.go)*
 - **Sending Options**:
-  - Single-shot transmission (Enter)
-  - Continuous transmission with custom cycle times (Space)
-- **Emergency Stop**: Instantly stop all transmissions (s key)
+  - Single-shot transmission
+  - Continuous transmission with custom cycle times
+- **Emergency Stop**: Instantly stop all transmissions
 
 ### Receive Mode Features
 
@@ -26,26 +26,53 @@ A comprehensive CAN bus debugging tool with a Terminal User Interface (TUI) buil
 
 ## 📋 Requirements
 
-- Go 1.19 or higher. 
-You can install it with: 
-```bash
-#installing go
-sudo apt install golang-go
-```
-
 - SocketCAN interface (vcan0 or real CAN interface)  --->  **you need to have linux or some emulator like WSL**
 
 ## 🛠️ Installation and Usage Guide
 
-### Build from Source
+### Quick Installation (Recommended)
+
+Download the latest pre-built executable from the [Releases page](https://github.com/squadracorsepolito/can-debug/releases):
+
+1. **For Linux (x86_64)**: Download `can-debug_Linux_x86_64.tar.gz`
+2. **For macOS (Intel)**: Download `can-debug_Darwin_x86_64.tar.gz`
+3. **For macOS (Apple Silicon)**: Download `can-debug_Darwin_arm64.tar.gz`
+4. **For Windows**: Download `can-debug_Windows_x86_64.zip`
+
+Extract and run:
+
 ```bash
-git clone <repository-url>
+# Linux/macOS
+tar -xzf can-debug_*.tar.gz
+./can-debug
+
+# Windows (extract zip and run)
+can-debug.exe
+```
+
+### Build from Source (For Development)
+
+Requirements:
+
+- Go 1.19 or higher
+
+```bash
+# Install Go on Ubuntu/Debian
+sudo apt install golang-go
+```
+
+Build steps:
+
+```bash
+git clone https://github.com/squadracorsepolito/can-debug.git
 cd can-debug
 go build -o can-debug
 ```
 
 ### Command Line Options
+
 ⚠️⚠️⚠️ **Before running you should set up a can or vcan network** ️⚠️⚠️️⚠️
+
 ```bash
 can-debug [canNetworkName]            # Use the file picker to choose the dbc file
 can-debug [canNetworkName] [file.dbc] # Load DBC file directly
@@ -54,48 +81,96 @@ can-debug -h|--help                   # Show comprehensive help
 
 ## 🧪 Testing
 
-### With Vcan Network
-#### 1)If you want to quickly test the progragram, you just need to run the file 'TestVcanSetUp' like this
+The application can be tested using a virtual CAN network (vcan) or a real CAN interface. Two approaches are provided: a quick helper script and a manual setup.
+
+### With vcan (quick)
+
+1. Run the helper script to create a vcan interface:
+
 ```bash
 ./TestVcanSetUp.sh
 ```
-#### in order to test if the program is working correclty:
-- run the program in a window
-- open another window and run the following commands to test
-    - Test for sending
-        - run this command: 'candump vcan0'
-        - now every time the main program sends a message you should see it on the candump window 
-        - press ctrl+c to stop the candump
-    - Test for receiving
-        - go in the monitoring mode on the main program
-        - on the other window use 'cansend vcan0 [Message ID]#[Data] (example: cansend vcan0 123#DEADBEEF)
-        - if you are monitoring the message with that same ID you shoud receive it on the main program
 
-
-You can use the file present in 'internal/test/MCB.dbc' in order to test
-
-#### 2) If you want to do it manually:
+2. Start the application in one terminal (example):
 
 ```bash
-#create virtual can network
+./can-debug vcan0
+```
+
+3. In another terminal verify behaviour:
+
+- To observe frames sent by the program:
+
+```bash
+candump vcan0
+```
+
+- To send a frame to the program (example):
+
+```bash
+cansend vcan0 123#DEADBEEF
+```
+
+Notes:
+
+- Use `internal/test/MCB.dbc` as a sample DBC file for testing.
+- Press `Ctrl+C` to stop `candump`.
+
+### With vcan (manual)
+
+If you prefer to create the virtual CAN interface manually:
+
+```bash
+# create virtual CAN network
 sudo modprobe can
 sudo modprobe can-raw
 sudo modprobe vcan
-sudo apt install can-utils #not neccessary but useful for testing (cansend, cangen, candump, ...)
-sudo ip link add dev [VCanNetworkName] type vcan
-sudo ip link set up [VCanNetworkName]
-#ip a show vcan0 ----> use to check if vcan0 has been succesfully created
+sudo apt install can-utils    # optional but useful (cansend, cangen, candump)
+sudo ip link add dev vcan0 type vcan
+sudo ip link set up vcan0
+# verify:
+ip a show vcan0
 ```
 
-### With Real Can Network:
+### With a real CAN interface
+
+Replace `[CanNetworkName]` and `[bitrate]` with your interface name and bitrate:
 
 ```bash
-#create virtual can network
 sudo modprobe can
 sudo modprobe can-raw
-sudo modprobe [AppropriateModuleName]
-sudo apt install can-utils #not neccessary but useful for testing (cansend, cangen, candump, ...)
-sudo ip link set [CanNetworkName] type can bitrate [bitrate]
-sudo ip link set up [CanNetworkName]
-#ip a show vcan0 ----> use to check if vcan0 has been succesfully created
+sudo modprobe <appropriate_module>
+sudo apt install can-utils    # optional but useful
+sudo ip link set <CanNetworkName> type can bitrate <bitrate>
+sudo ip link set up <CanNetworkName>
+ip a show <CanNetworkName>
 ```
+
+After the interface is up, run the program specifying the interface and optionally a DBC file:
+
+```bash
+# use the file picker:
+./can-debug <CanNetworkName>
+
+# or specify DBC directly:
+./can-debug <CanNetworkName> path/to/file.dbc
+```
+
+Common test commands (same as above):
+
+```bash
+candump <interface>
+cansend <interface> 123#DEADBEEF
+```
+
+## 🤝 Contributing
+
+### Development Setup
+
+For contributors who want to modify the code:
+
+1. **Fork and clone** the repository
+2. **Install Go 1.19+** if not already installed
+3. **Build from source** using the instructions above
+4. **Test your changes** using the vcan setup
+5. **Submit a Pull Request** to the `dev` branch
