@@ -24,7 +24,7 @@ func NewModel(CanNet net.Conn) Model {
 		SelectedMessages:          make([]CANMessage, 0),
 		LastUpdate:                time.Now(),
 		CanNetwork:                CanNet,
-		Transmitter:               *socketcan.NewTransmitter(CanNet),
+		Transmitter:               socketcan.NewTransmitter(CanNet),
 		SendReceiveChoice:         0,
 		PreviousSendReceiveChoice: 0, // Initialize to same as current
 		SendSignals:               make([]SendSignal, 0),

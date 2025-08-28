@@ -39,6 +39,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
+			if m.CanNetwork != nil {
+				m.Transmitter.Close()
+			}
 			return m, tea.Quit
 		case "tab":
 			// Tab sempre torna indietro alla schermata precedente

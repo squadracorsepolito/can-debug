@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"strconv"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -220,7 +221,7 @@ func (m *Model) initializesTableDBCSignals() {
 	}
 
 	rows := []table.Row{}
-
+// qui !
 	for _, msg := range m.SelectedMessages {
 		// Get all signals for this message from the DBC
 		signals := msg.Message.Signals()
@@ -325,33 +326,6 @@ func (m *Model) updateTable(sgn *acmelib.SignalDecoding, sgnID uint32) {
 	m.MonitoringTable.SetRows(rows)
 }
 
-// sendWithSocketCAN sends a message using SocketCAN (Linux)
-func (m *Model) sendWithSocketCAN(message string) {
-	// Convert the string to hex bytes
-	data := []byte(message)
-	if len(data) > 8 {
-		data = data[:8] // CAN frames can have max 8 bytes of data
-	}
-
-	// Use a default CAN ID for sent messages
-	frame := can.Frame{
-		ID:     0x123, // Default CAN ID for sent messages
-		Data:   [8]byte{},
-		Length: uint8(len(data)),
-	}
-
-	// Copy data to frame
-	copy(frame.Data[:], data)
-
-	// Send the frame
-	err := m.Transmitter.TransmitFrame(context.Background(), frame)
-	if err != nil {
-		m.SendStatus = fmt.Sprintf("⚠️ SocketCAN error: %v", err)
-	} else {
-		m.SendStatus = fmt.Sprintf("📡 Sent via SocketCAN (ID: 0x%X)", frame.ID)
-	}
-}
-
 // setupSendConfiguration prepares the send configuration table and signals
 func (m *Model) setupSendConfiguration() {
 	m.SendSignals = make([]SendSignal, 0)
@@ -362,7 +336,6 @@ func (m *Model) setupSendConfiguration() {
 	for _, signal := range msg.Message.Signals() {
 		sendSignal := SendSignal{
 			SignalName: signal.Name(),
-			Value:      "0", // default value
 		}
 
 		// Extract unit information from the signal
@@ -509,35 +482,23 @@ func (m *Model) updateSendTableRows() {
 	m.ensureTableCursorVisible()
 }
 
-// sendConfiguredSignals sends the configured signals via CAN
-func (m *Model) sendConfiguredSignals() {
-	if len(m.SendSignals) == 0 {
-		m.SendStatus = "No signals configured to send"
-		return
-	}
+//m.SendStatus = fmt.Sprintf("✅  Sent signals: %s", strings.Join(signalNames, ", "))
 
-	// Validate that all required values are entered
-	for _, signal := range m.SendSignals {
-		if signal.TextInput.Value() == "" {
-			m.SendStatus = fmt.Sprintf("Please enter a value for signal '%s'", signal.SignalName)
-			return
-		}
-	}
-
-	// TODO: Implement actual CAN sending logic
-	// For now, just show success message
-	var signalNames []string
-	for _, signal := range m.SendSignals {
-		signalNames = append(signalNames, fmt.Sprintf("%s=%s", signal.SignalName, signal.TextInput.Value()))
-	}
-
-	m.SendStatus = fmt.Sprintf("✅  Sent signals: %s", strings.Join(signalNames, ", "))
-}
 
 // This starts a goroutine to send the current selected message cyclically
 func (m *Model) startCyclicalSending() {
-	messageID := m.SelectedMessages[0].ID //ID in decimal
-	messageName := m.SelectedMessages[0].Name
+	
+	frame, ok := m.GenarateFrame()
+	if !ok {
+		return // Error message already set in GenarateFrame
+	}
+	
+	//try to send the first frame immediately to catch errors before starting the goroutine
+	err := m.sendFrame(frame)
+	if err != nil {
+		m.SendStatus = fmt.Sprintf("⚠️ SocketCAN error: %v", err)
+		return
+	} 
 
 	//build info for stopping the message
 	ctx, cancel := context.WithCancel(context.Background())
@@ -545,10 +506,10 @@ func (m *Model) startCyclicalSending() {
 		stop:      cancel,
 		frequency: m.CycleTime,
 	}
-	m.ActiveMessages[int(messageID)] = mex
+	m.ActiveMessages[int(frame.ID)] = mex
 
 	//this goroutine sends a message every 'interval' of time, ctx is used to stop
-	go func(interval time.Duration, ctx context.Context) {
+	go func(interval time.Duration, ctx context.Context, frame can.Frame) {
 		tick := time.NewTicker(interval)
 		defer tick.Stop()
 		for {
@@ -556,12 +517,12 @@ func (m *Model) startCyclicalSending() {
 			case <-ctx.Done():
 				return
 			case <-tick.C:
-				//TODO inviare roba---------------------------------------------------------------------------------------------
+				m.sendFrame(frame)
 			}
 		}
-	}(time.Duration(mex.frequency)*time.Millisecond, ctx)
+	}(time.Duration(mex.frequency)*time.Millisecond, ctx, frame)
 
-	m.SendStatus = fmt.Sprintf("🔄  Message '%s': Cyclical sending started (interval: %dms).", messageName, m.CycleTime)
+	m.SendStatus = fmt.Sprintf("🔄  Message '%s': Cyclical sending started (interval: %dms).", m.SelectedMessages[0].Name, m.CycleTime)
 	// Update the table to reflect the new status
 	m.updateSendTableRows()
 }
@@ -590,6 +551,17 @@ func (m *Model) stopAllMessages() {
 
 // sendSingleMessage sends all signals of a message once
 func (m *Model) sendSingleMessage() {
+	// Generate and send the CAN frame
+	frame, ok := m.GenarateFrame()
+	if !ok {
+		return // Error message already set in GenarateFrame
+	}
+	err := m.sendFrame(frame)
+	if err != nil {
+		m.SendStatus = fmt.Sprintf("⚠️ SocketCAN error: %v", err)
+		return
+	} 
+
 	// Find all signals for this message and send them
 	sentCount := 0
 	for i := range m.SendSignals {
@@ -597,15 +569,10 @@ func (m *Model) sendSingleMessage() {
 		signal.IsSingleShot = true
 		sentCount++
 	}
-
-	// Update display
+	m.SendStatus = fmt.Sprintf("📤 Sent message '%s' (%d signals) once: %v", m.SelectedMessages[0].Name, sentCount, frame.Data)
+	
+	// Update display and reset single shot flags after a brief moment (blink effect)
 	m.updateSendTableRows()
-
-	// TODO: Implement actual CAN sending logic here-----------------------------------------------------------------------------------
-	// For now, just show success message
-	m.SendStatus = fmt.Sprintf("📤 Sent message '%s' (%d signals) once", m.SelectedMessages[0].Name, sentCount)
-
-	// Reset single shot flags after a brief moment
 	go func() {
 		time.Sleep(2 * time.Second)
 		for i := range m.SendSignals {
@@ -650,8 +617,77 @@ func (m *Model) ensureTableCursorVisible() {
 	}
 }
 
-// TODO bisogna fare l'encoding, impazzisco ----------------------------------------------------------------
-func (m *Model) genarateFrame() can.Frame {
+// GenarateFrame creates a CAN frame from the current SendSignals values
+func (m *Model) GenarateFrame() (can.Frame, bool) {
 	frame := can.Frame{}
-	return frame
+	mex := m.SelectedMessages[0].Message
+	
+	// for each signal
+	for _, signal := range mex.Signals() {
+		//find inserted value
+		value, err := m.getInsertedValue(signal)
+		if err != nil {
+			m.SendStatus = fmt.Sprintf("⚠️  Error getting signal %s: %s", signal.Name(), err.Error())
+			return frame, false
+		}
+
+		//update the value in the signal
+		switch signal.Kind().String(){
+		case "standard":
+			standardSign, _ := signal.ToStandard()
+			err = standardSign.UpdateEncodedValue(value)
+			if err != nil {
+				m.SendStatus = fmt.Sprintf("⚠️  Error encoding signal '%s': value must be between %v and %v", signal.Name(), standardSign.Type().Min(), standardSign.Type().Max())
+				return frame, false
+			}
+		case "enum":
+			enumSign, _ := signal.ToEnum()
+			err = enumSign.UpdateEncodedValue(int(value))
+			if err != nil {
+				m.SendStatus = fmt.Sprintf("⚠️  Error encoding signal '%s'(type enum): value %d is not valid", signal.Name(), int(value))
+				return frame, false
+			}
+		case "muxor":
+			muxorSign, _ := signal.ToMuxor()
+			err = muxorSign.UpdateEncodedValue(int(value))
+			if err != nil {
+				m.SendStatus = fmt.Sprintf("⚠️  Error encoding signal '%s'(type muxor): value %d is out of bounds", signal.Name(), int(value))
+				return frame, false
+			}
+		}
+	}
+
+	//build and return the frame
+	data := mex.SignalLayout().Encode()
+	copy(frame.Data[:], data)
+	frame.ID = uint32(mex.GetCANID())
+	frame.Length = uint8(len(frame.Data))
+
+	return frame, true
+}
+
+// getInsertedValue cheks if the signal passed is currently selected, if it is it return the value inserted in input
+func (m *Model) getInsertedValue(signal acmelib.Signal) (float64, error){
+
+	for _, SendSig := range m.SendSignals{
+		if SendSig.SignalName == signal.Name(){
+			value := SendSig.TextInput.Value()
+			//if value is empty assign 0
+			if value == ""{
+				return 0, nil
+			}
+			return strconv.ParseFloat(value, 64) 
+		}
+	}
+
+	return 0, fmt.Errorf("segnale non trovato")
+}
+
+// sendWithSocketCAN sends a message using SocketCAN (Linux)
+func (m *Model) sendFrame(frame can.Frame) error{
+	// Send the frame
+	if m.CanNetwork == nil {
+		return fmt.Errorf("⚠️  No SocketCAN transmitter available")
+	}
+	return m.Transmitter.TransmitFrame(context.Background(), frame)
 }

@@ -73,7 +73,6 @@ type SendSignal struct {
 	SignalName   string
 	Unit         string
 	TextInput    textinput.Model
-	Value        string
 	IsSingleShot bool // true if this is a single shot send (shows "-" in cycle column)
 }
 
@@ -93,7 +92,7 @@ type Model struct {
 	Height             int
 	Err                error
 	CanNetwork         net.Conn
-	Transmitter        socketcan.Transmitter
+	Transmitter        *socketcan.Transmitter
  	// send/receive functionality
 	SendReceiveChoice         int // 0 = send, 1 = receive
 	PreviousSendReceiveChoice int // to track when mode actually changes
