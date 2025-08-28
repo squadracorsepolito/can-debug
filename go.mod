@@ -6,7 +6,7 @@ require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.1.0
 	github.com/charmbracelet/lipgloss v0.13.0
-	github.com/squadracorsepolito/acmelib v1.16.0
+	github.com/squadracorsepolito/acmelib v1.16.1
 	go.einride.tech/can v0.15.0
 )
 

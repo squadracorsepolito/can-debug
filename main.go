@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"runtime"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/squadracorsepolito/can-debug/internal/ui"
@@ -14,10 +13,36 @@ import (
 )
 
 func main() {
+	// Handle help
+	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
+		showHelp()
+		return
+	}
+	
+	//connecting and setting up the can network
+	var canNetworkName string
+	if len(os.Args) <= 1 {
+		fmt.Print("Warning: no name for the can network was provided\n")
+		return   //canNetworkName = ""     <---------------------------------   replace this line for debug TUI
+	}else{
+		canNetworkName = os.Args[1]
+	}
+	var conn net.Conn
+	// Try to connect to SocketCAN
+	c, err := socketcan.DialContext(context.Background(), "can", canNetworkName)
+	if err != nil {
+		fmt.Printf("Warning: Error opening SocketCAN on Linux: %v\n", err)
+		return   //conn = nil               <---------------------------------   replace this line for debug TUI
+	} else {
+		conn = c
+		defer conn.Close()
+	}
+	
+
 	// If a DBC file is provided as an argument, load it directly
 	var dbcPath string
-	if len(os.Args) > 1 && os.Args[1] != "-h" && os.Args[1] != "--help" {
-		dbcPath = os.Args[1]
+	if len(os.Args) > 2 {
+		dbcPath = os.Args[2]
 
 		// Check if the file exists
 		if _, err := os.Stat(dbcPath); os.IsNotExist(err) {
@@ -26,31 +51,6 @@ func main() {
 		}
 
 		fmt.Printf("📁 Loading DBC file: %s\n", dbcPath)
-	}
-
-	//connecting and setting up the can network
-	var conn net.Conn
-	if runtime.GOOS == "linux" {
-		// Try to connect to SocketCAN on Linux
-		c, err := socketcan.DialContext(context.Background(), "can", "vcan0")
-		if err != nil {
-			fmt.Printf("Warning: Error opening SocketCAN on Linux: %v\n", err)
-			fmt.Printf("Continuing in test mode (will use cansend for sending)\n")
-			conn = nil
-		} else {
-			conn = c
-			defer conn.Close()
-		}
-	} else {
-		// On non-Linux systems, continue without SocketCAN
-		fmt.Printf("Running on %s - no possible transmission\n", runtime.GOOS)
-		conn = nil
-	}
-
-	// Handle help
-	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
-		showHelp()
-		return
 	}
 
 	// Create the initial model
@@ -68,17 +68,17 @@ func showHelp() {
 	fmt.Print(`🔧 CAN Debug Tool
 
 Use:
-  can-debug [file.dbc]  Directly load a DBC file
+  can-debug [name_of_can_network] -> specify the CAN network name and load a dbc file with the file picker
+  can-debug [name_of_can_network] [file.dbc] -> Directly load a DBC file
   can-debug -h|--help   Show this help
 
 Examples:
-  can-debug                           # Use the file picker
-  can-debug internal/test/MCB.dbc     # Load specific file
+  can-debug                              # Visualize only the interface(no real can network) + Use the file picker
+  can-debug vcan0                        # Try to connect to the can network "vcan0" + Use the file picker
+  can-debug vcan0 internal/test/MCB.dbc  # Try to connect to the can network "vcan0" + Load specific file
 
 Platform Support:
-  Linux:   Uses SocketCAN (vcan0) for sending and receiving
-  macOS:   Uses cansend command for sending (receiving disabled)
-           Make sure can-utils is installed and vcan0 is configured
+  You can only transmit CAN messages on Linux systems, and you need to create the can network beforehand (see README file).
 
 Navigation Commands:
   ↑/↓ or k/j   Navigate up/down in lists and tables
@@ -102,9 +102,8 @@ Send Configuration:
   Action:      Enter send once • Space toggle continuous sending
                ←→ adjust cycle time • s stop all signals
 
-  Individual Signal Control:
-    - Each signal has its own frequency (cycle time) in milliseconds
-    - Use ←→ arrows to adjust cycle time (50ms increments, range: 50ms-10s)
+  Individual Message Control:
+    - Use ←→ arrows to adjust cycle time (10ms increments, range: 10ms-10s) (can be changed by changing the value rangeMs in internal/ui/types.go)
     - Enter: Send signal once (single shot)
     - Space: Toggle continuous sending at set frequency
     - s: Emergency stop all continuous signals
