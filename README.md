@@ -41,6 +41,15 @@ Download the latest pre-built executable from the [Releases page](https://github
 
 Now extract the file, set up a SocketCan interface and run:
 
+```bash
+# Extract the archive
+tar -xzf can-debug_*.tar.gz
+cd can-debug
+
+# Make executable (Linux/macOS)
+chmod +x can-debug
+```
+
 ### Build from Source (For Development)
 
 Requirements:
