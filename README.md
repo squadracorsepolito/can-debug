@@ -6,27 +6,27 @@ A CAN bus debugging tool with a Terminal User Interface (TUI) built with Bubble 
 
 ### Core Functionality
 
-- **DBC File Support**: Load and parse DBC files for comprehensive CAN message definitions
-- **Dual Mode Operation**: Choose between Send and Receive modes
-- **Real-time Monitoring**: Live CAN message reception and signal decoding
-- **Signal Transmission**: Individual frequency control for each message
+- Load and parse DBC files for comprehensive CAN message definitions
+- Send and Receive multiple messages all at the same time
 
 ### Send Mode Features
 
-- **Individual Message Control**: Each message has its own transmission frequency (10ms to 10s) *(can be modified by changing the value rangeMs in internal/ui/types.go)*
 - **Sending Options**:
   - Single-shot transmission
   - Continuous transmission with custom cycle times
-- **Emergency Stop**: Instantly stop all transmissions
+    - Individual frequency control for each message (frequancy between 10ms to 10s) *(can be modified by changing the value rangeMs in internal/ui/types.go)*
+    - Each massage can be stopped individually + thay can also be can be stopped all toghether
 
 ### Receive Mode Features
 
-- **Message Selection**: Choose specific CAN messages to monitor
-- **Signal Decoding**: Automatic signal extraction and value interpretation using DBC definitions
+- Choose specific CAN messages to monitor live
+- Automatic signal extraction and value interpretation using DBC definitions
 
 ## 📋 Requirements
 
 - SocketCAN interface (vcan0 or real CAN interface)  --->  **you need to have linux or some emulator like WSL**
+
+Go [below](#with-vcan-quick) to see how to crate a virtual can interface  
 
 ## 🛠️ Installation and Usage Guide
 
@@ -39,16 +39,7 @@ Download the latest pre-built executable from the [Releases page](https://github
 3. **For macOS (Apple Silicon)**: Download `can-debug_Darwin_arm64.tar.gz`
 4. **For Windows**: Download `can-debug_Windows_x86_64.zip`
 
-Extract and run:
-
-```bash
-# Linux/macOS
-tar -xzf can-debug_*.tar.gz
-./can-debug
-
-# Windows (extract zip and run)
-can-debug.exe
-```
+Now extract the file, set up a SocketCan interface and run:
 
 ### Build from Source (For Development)
 
@@ -74,9 +65,9 @@ go build -o can-debug
 ⚠️⚠️⚠️ **Before running you should set up a can or vcan network** ️⚠️⚠️️⚠️
 
 ```bash
-can-debug [canNetworkName]            # Use the file picker to choose the dbc file
-can-debug [canNetworkName] [file.dbc] # Load DBC file directly
-can-debug -h|--help                   # Show comprehensive help
+can-debug [canNetworkName]                    # Use the file picker to choose the dbc file
+can-debug [canNetworkName] [Path/to/file.dbc] # Load DBC file directly
+can-debug -h|--help                           # Show comprehensive help
 ```
 
 ## 🧪 Testing
@@ -85,19 +76,13 @@ The application can be tested using a virtual CAN network (vcan) or a real CAN i
 
 ### With vcan (quick)
 
-1. Run the helper script to create a vcan interface:
+1. Run the helper script to create a vcan interface and start the application:
 
 ```bash
 ./TestVcanSetUp.sh
 ```
 
-2. Start the application in one terminal (example):
-
-```bash
-./can-debug vcan0
-```
-
-3. In another terminal verify behaviour:
+2. In another terminal verify behaviour:
 
 - To observe frames sent by the program:
 
@@ -162,15 +147,3 @@ Common test commands (same as above):
 candump <interface>
 cansend <interface> 123#DEADBEEF
 ```
-
-## 🤝 Contributing
-
-### Development Setup
-
-For contributors who want to modify the code:
-
-1. **Fork and clone** the repository
-2. **Install Go 1.19+** if not already installed
-3. **Build from source** using the instructions above
-4. **Test your changes** using the vcan setup
-5. **Submit a Pull Request** to the `dev` branch
