@@ -1,6 +1,8 @@
 # CAN Debug Tool
 
 A CAN bus debugging tool with a Terminal User Interface (TUI) built with Bubble Tea. This tool provides advanced functionality for sending and receiving CAN messages with individual message control and DBC file support.
+ 
+[User guide PDF presentation](can-debugUserGuideEng.pdf)
 
 ## 🚀 Features
 
@@ -11,7 +13,7 @@ A CAN bus debugging tool with a Terminal User Interface (TUI) built with Bubble 
 
 ### Send Mode Features
 
-- **Sending Options**:
+Sending Options:
   - Single-shot transmission
   - Continuous transmission with custom cycle times
     - Individual frequency control for each message (frequancy between 10ms to 10s) *(can be modified by changing the value rangeMs in internal/ui/types.go)*
